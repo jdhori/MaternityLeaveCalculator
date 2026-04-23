@@ -1050,6 +1050,41 @@ function wireSelectAnnouncements() {
   });
 }
 
+/* Save-as-PDF handler.
+   Uses the browser's native print pipeline with "Save as PDF" as a destination
+   — this keeps us fully CSP-safe (no external libraries, no network) while
+   reusing the @media print stylesheet that already hides the form, forces the
+   light palette, opens accordions, and sets good page breaks.
+
+   The one thing we add over plain Print is a descriptive document.title during
+   the print job: browsers use document.title as the default PDF filename, so
+   swapping it from the generic page title to something like
+   "UC-Maternity-Leave-Timeline-2026-05-01.pdf" gives the user a meaningful
+   filename by default. Title is restored on the 'afterprint' event. */
+function saveAsPDF() {
+  const lastDayInput = document.getElementById('lastDay');
+  const stamp = (lastDayInput && lastDayInput.value)
+    ? lastDayInput.value
+    : new Date().toISOString().slice(0, 10);
+  const desiredTitle = 'UC-Maternity-Leave-Timeline-' + stamp;
+  const originalTitle = document.title;
+
+  const restore = function () {
+    document.title = originalTitle;
+    window.removeEventListener('afterprint', restore);
+  };
+  window.addEventListener('afterprint', restore);
+
+  document.title = desiredTitle;
+  window.print();
+
+  /* Fallback restore for browsers that don't fire afterprint reliably
+     (older Safari). The print dialog is synchronous in most engines, so by the
+     time we get here the user has already dismissed it and we can safely
+     restore. */
+  setTimeout(restore, 1000);
+}
+
 /* Wire handlers once DOM is ready. Uses both a submit handler (the correct
    semantic) and a click handler on the button (belt-and-braces fallback in
    case some browser quirk or embedded preview swallows the submit event). */
@@ -1058,12 +1093,14 @@ function wire() {
   const calcBtn = document.querySelector('button.btn-primary');
   const resetBtn = document.getElementById('resetBtn');
   const printBtn = document.getElementById('printBtn');
+  const pdfBtn = document.getElementById('pdfBtn');
   const themeBtn = document.getElementById('themeToggle');
 
   if (form) form.addEventListener('submit', run);
   if (calcBtn) calcBtn.addEventListener('click', run);
   if (resetBtn) resetBtn.addEventListener('click', resetAll);
   if (printBtn) printBtn.addEventListener('click', function () { window.print(); });
+  if (pdfBtn) pdfBtn.addEventListener('click', saveAsPDF);
   if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
   wireInfoButtons();

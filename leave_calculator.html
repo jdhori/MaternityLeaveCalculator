@@ -9,7 +9,7 @@
      CSP deliberately denies everything by default and only allows same-origin
      scripts, styles, images, and fonts. No inline scripts, no inline styles,
      no external resources, no network requests, no embedding via iframe. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-+LK9qR3hA/6xmRRq07qO2BQyGbFfdNilqeOHSmHGzE0='; style-src 'sha256-Vq31N45YKqNPdYE5Se0LiiUO6FqxzRyRx+RMNw+Wnxc='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-mcUtIPc4kZ+5iXqJv7t22xtfaa3r4YbNJ7mqd4WB540='; style-src 'sha256-Vq31N45YKqNPdYE5Se0LiiUO6FqxzRyRx+RMNw+Wnxc='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
@@ -1167,6 +1167,7 @@
         <button type="submit" class="btn-primary">Calculate timeline</button>
         <button type="button" id="resetBtn" class="btn-secondary">Reset</button>
         <button type="button" id="printBtn" class="btn-secondary">Print</button>
+        <button type="button" id="pdfBtn" class="btn-secondary">Save as PDF</button>
       </div>
     </form>
   </aside>
@@ -2291,6 +2292,41 @@ function wireSelectAnnouncements() {
   });
 }
 
+/* Save-as-PDF handler.
+   Uses the browser's native print pipeline with "Save as PDF" as a destination
+   — this keeps us fully CSP-safe (no external libraries, no network) while
+   reusing the @media print stylesheet that already hides the form, forces the
+   light palette, opens accordions, and sets good page breaks.
+
+   The one thing we add over plain Print is a descriptive document.title during
+   the print job: browsers use document.title as the default PDF filename, so
+   swapping it from the generic page title to something like
+   "UC-Maternity-Leave-Timeline-2026-05-01.pdf" gives the user a meaningful
+   filename by default. Title is restored on the 'afterprint' event. */
+function saveAsPDF() {
+  const lastDayInput = document.getElementById('lastDay');
+  const stamp = (lastDayInput && lastDayInput.value)
+    ? lastDayInput.value
+    : new Date().toISOString().slice(0, 10);
+  const desiredTitle = 'UC-Maternity-Leave-Timeline-' + stamp;
+  const originalTitle = document.title;
+
+  const restore = function () {
+    document.title = originalTitle;
+    window.removeEventListener('afterprint', restore);
+  };
+  window.addEventListener('afterprint', restore);
+
+  document.title = desiredTitle;
+  window.print();
+
+  /* Fallback restore for browsers that don't fire afterprint reliably
+     (older Safari). The print dialog is synchronous in most engines, so by the
+     time we get here the user has already dismissed it and we can safely
+     restore. */
+  setTimeout(restore, 1000);
+}
+
 /* Wire handlers once DOM is ready. Uses both a submit handler (the correct
    semantic) and a click handler on the button (belt-and-braces fallback in
    case some browser quirk or embedded preview swallows the submit event). */
@@ -2299,12 +2335,14 @@ function wire() {
   const calcBtn = document.querySelector('button.btn-primary');
   const resetBtn = document.getElementById('resetBtn');
   const printBtn = document.getElementById('printBtn');
+  const pdfBtn = document.getElementById('pdfBtn');
   const themeBtn = document.getElementById('themeToggle');
 
   if (form) form.addEventListener('submit', run);
   if (calcBtn) calcBtn.addEventListener('click', run);
   if (resetBtn) resetBtn.addEventListener('click', resetAll);
   if (printBtn) printBtn.addEventListener('click', function () { window.print(); });
+  if (pdfBtn) pdfBtn.addEventListener('click', saveAsPDF);
   if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
   wireInfoButtons();

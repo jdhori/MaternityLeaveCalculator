@@ -143,6 +143,7 @@ Designed from the ground up to work for screen reader, keyboard, and low-vision 
 - **Calculate timeline** — submit and render.
 - **Reset** — clear all fields and results.
 - **Print** — browser print dialog with print-optimized layout.
+- **Save as PDF** — triggers the browser's print-to-PDF pipeline and sets a descriptive default filename (`UC-Maternity-Leave-Timeline-YYYY-MM-DD.pdf`, stamped with the Last Day Worked). In the print dialog, pick **Save as PDF** as the destination. Reuses the same `@media print` styles as Print, so the PDF is clean (form hidden, accordions open, calendars in a 3-column grid, good page breaks). No external libraries — CSP stays strict.
 
 ---
 
