@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Accessible maternity leave timeline calculator. Computes Pregnancy Disability Leave (PDL), Family Medical Leave (FML), California Family Rights Act (CFRA), waiting period, sick, vacation, and Lincoln Financial disability dates from simple inputs.">
+
+<!-- Security headers (meta-tag equivalents where available).
+     CSP deliberately denies everything by default and only allows same-origin
+     scripts, styles, images, and fonts. No inline scripts, no inline styles,
+     no external resources, no network requests, no embedding via iframe. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+
+<title>Maternity Leave Timeline Calculator — Accessible Prototype</title>
+<script src="theme-loader.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<a href="#main" class="skip">Skip to main content</a>
+
+<div class="page">
+
+<header class="masthead">
+  <div class="masthead-top">
+    <p class="eyebrow">UC Systemwide Prototype · Accessibility Replacement for .xlsm Tool</p>
+    <button type="button" id="themeToggle" class="theme-toggle"
+            aria-label="Switch to dark mode" aria-pressed="false">
+      <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M20 15.5A8 8 0 1 1 8.5 4a7 7 0 0 0 11.5 11.5z"></path>
+      </svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"></circle>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+      </svg>
+      <span class="theme-toggle-label">Dark mode</span>
+    </button>
+  </div>
+  <h1>Maternity Leave Timeline Calculator</h1>
+  <p class="lede">
+    Enter last day worked, estimated due date, and leave balances to generate a
+    timeline of Pregnancy Disability Leave (PDL), Family Medical Leave (FML),
+    California Family Rights Act (CFRA) leave, disability waiting period, and
+    Lincoln Financial income dates. Designed for use across all UC locations —
+    UCOP, UC Berkeley, UC Davis, UC Irvine, UCLA, UC Merced, UC Riverside,
+    UC San Diego, UC San Francisco, UC Santa Barbara, and UC Santa Cruz.
+  </p>
+</header>
+
+<main id="main" class="grid">
+
+  <!-- =============== FORM =============== -->
+  <aside class="form-panel" aria-labelledby="form-heading">
+    <h2 id="form-heading" class="panel-heading">Your information</h2>
+    <p class="required-note">
+      Fields marked <span aria-hidden="true" class="required-marker">*</span>
+      <span class="sr-only">(required)</span> are required.
+    </p>
+
+    <!-- Error summary: list of all validation problems, announced via
+         role="alert" (implicit aria-live="assertive") and focused on show
+         so screen readers reliably speak the full list. Each link jumps
+         to and focuses the corresponding field. -->
+    <div id="errorSummary" class="error-summary" role="alert"
+         aria-labelledby="errorSummaryHeading" tabindex="-1" hidden>
+      <h3 id="errorSummaryHeading" class="error-summary-heading">
+        <span class="error-summary-icon" aria-hidden="true">⚠</span>
+        There is a problem with your information
+      </h3>
+      <p id="errorSummaryIntro" class="error-summary-intro">
+        Please fix the following before calculating the timeline:
+      </p>
+      <ul id="errorSummaryList" class="error-summary-list"
+          aria-labelledby="errorSummaryIntro"></ul>
+    </div>
+
+    <form id="calcForm" novalidate>
+
+      <fieldset>
+        <legend>Key dates</legend>
+
+        <div class="field">
+          <label for="lastDay">Last day worked <span class="req" aria-hidden="true">*</span></label>
+          <input type="date" id="lastDay" name="lastDay" required
+                 aria-required="true" aria-describedby="lastDay-hint lastDay-err">
+          <span class="hint" id="lastDay-hint">The last day you actually worked before leave begins.</span>
+          <span class="err-msg" id="lastDay-err" role="alert" hidden></span>
+        </div>
+
+        <div class="field">
+          <label for="dueDate">Estimated due date <span class="req" aria-hidden="true">*</span></label>
+          <input type="date" id="dueDate" name="dueDate" required
+                 aria-required="true" aria-describedby="dueDate-hint dueDate-err">
+          <span class="hint" id="dueDate-hint">From your physician. Used when actual birth date is unknown.</span>
+          <span class="err-msg" id="dueDate-err" role="alert" hidden></span>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="actualBirth">Actual birth date</label>
+            <input type="date" id="actualBirth" name="actualBirth"
+                   aria-describedby="actualBirth-hint">
+            <span class="hint" id="actualBirth-hint">Optional.</span>
+          </div>
+          <div class="field">
+            <label for="returnDate">Estimated return to work</label>
+            <input type="date" id="returnDate" name="returnDate"
+                   aria-describedby="returnDate-hint">
+            <span class="hint" id="returnDate-hint">Optional.</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="deliveryType">Delivery type <span class="req" aria-hidden="true">*</span></label>
+          <select id="deliveryType" name="deliveryType" required
+                  aria-required="true" aria-live="polite"
+                  aria-describedby="deliveryType-hint deliveryType-err">
+            <option value="">Select one…</option>
+            <option value="Natural">Natural birth (42-day PDL)</option>
+            <option value="C-section">C-section (56-day PDL)</option>
+          </select>
+          <span class="hint" id="deliveryType-hint">Determines Pregnancy Disability Leave length.</span>
+          <span class="err-msg" id="deliveryType-err" role="alert" hidden></span>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Work schedule</legend>
+        <fieldset class="radio-group" aria-describedby="schedule-hint">
+          <legend>Employee schedule type</legend>
+          <label class="radio">
+            <input type="radio" name="scheduleType" value="regular" checked>
+            <span>Regular (40 hr/wk, 5 days × 8 hours)</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="scheduleType" value="variable">
+            <span>Variable schedule (3&nbsp;×&nbsp;12, 4&nbsp;×&nbsp;10, etc.)</span>
+          </label>
+        </fieldset>
+        <span class="hint" id="schedule-hint">
+          Regular employees max out at 22 working days of sick usage; variable employees max out at 30 working days based on their schedule.
+        </span>
+
+        <div class="sub-fields" id="variableFields" hidden>
+          <div class="row">
+            <div class="field">
+              <label for="hoursPerDay">Hours per day</label>
+              <input type="number" id="hoursPerDay" name="hoursPerDay"
+                     min="1" max="24" step="0.5" value="12"
+                     aria-describedby="hoursPerDay-err">
+              <span class="err-msg" id="hoursPerDay-err" role="alert" hidden></span>
+            </div>
+            <div class="field">
+              <label for="daysPerWeek">Days per week</label>
+              <input type="number" id="daysPerWeek" name="daysPerWeek"
+                     min="1" max="7" step="1" value="3"
+                     aria-describedby="daysPerWeek-err">
+              <span class="err-msg" id="daysPerWeek-err" role="alert" hidden></span>
+            </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Leave balances</legend>
+
+        <div class="field">
+          <label for="sickHours">Total sick hours <span class="req" aria-hidden="true">*</span></label>
+          <input type="number" id="sickHours" name="sickHours" min="0" step="1" required
+                 aria-required="true" aria-describedby="sickHours-hint sickHours-err">
+          <span class="hint" id="sickHours-hint">Enter total accrued sick hours. The tool converts to working days based on your schedule.</span>
+          <span class="err-msg" id="sickHours-err" role="alert" hidden></span>
+        </div>
+
+        <div class="field">
+          <label for="vacHours">Total vacation hours</label>
+          <input type="number" id="vacHours" name="vacHours" min="0" step="1"
+                 aria-describedby="vacHours-hint">
+          <span class="hint" id="vacHours-hint">Optional. Used only if sick hours don't cover the waiting period <em>and</em> you elect "Use vacation" below.</span>
+        </div>
+
+        <fieldset class="radio-group">
+          <legend>If sick leave doesn't cover the waiting period</legend>
+          <label class="radio">
+            <input type="radio" name="fallbackStrategy" value="vacation" checked>
+            <span>Use vacation balance, then go without pay</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="fallbackStrategy" value="lns">
+            <span>Go without pay (don't use vacation)</span>
+          </label>
+        </fieldset>
+
+        <div class="field">
+          <label for="waitingPeriod">Disability waiting period (days)</label>
+          <select id="waitingPeriod" name="waitingPeriod" aria-live="polite">
+            <option value="7">7 days</option>
+            <option value="14" selected>14 days (standard)</option>
+            <option value="30">30 days</option>
+            <option value="90">90 days</option>
+            <option value="180">180 days</option>
+          </select>
+          <span class="hint">Lincoln Financial plan waiting period.</span>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Additional leave</legend>
+        <label class="check">
+          <input type="checkbox" id="fmlEligible" name="fmlEligible">
+          <span>I am eligible for Family Medical Leave (FML)</span>
+        </label>
+        <div class="spacer-s"></div>
+        <div class="row">
+          <div class="field">
+            <label for="pfcbWeeks">PFCB weeks</label>
+            <input type="number" id="pfcbWeeks" name="pfcbWeeks" min="0" max="8" step="1"
+                   aria-describedby="pfcbWeeks-hint">
+            <span class="hint" id="pfcbWeeks-hint">Pay for Family Care and Bonding. Enter weeks (UC standard is up to 8).</span>
+          </div>
+          <div class="field">
+            <label for="pfcbStart">PFCB begin date</label>
+            <input type="date" id="pfcbStart" name="pfcbStart"
+                   aria-describedby="pfcbStart-hint">
+            <span class="hint" id="pfcbStart-hint">Optional — defaults to the day after PDL ends.</span>
+          </div>
+        </div>
+
+        <div class="field-group-header">
+          <span class="field-group-title">Child Caring Leave (CCL)</span>
+          <button type="button" id="cclInfoBtn" class="info-btn"
+                  aria-expanded="false"
+                  aria-controls="cclInfoNote"
+                  aria-label="About CCL eligibility">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </button>
+        </div>
+        <div id="cclInfoNote" class="info-note" role="note"
+             aria-live="polite" aria-atomic="true" hidden>
+          <p><strong>Not everyone is eligible for CCL.</strong> Eligibility depends
+          on your employment classification and, for represented employees, the
+          terms of your union contract. Please check with your Union contract or
+          your campus Leave Specialist for more details.</p>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="cclWeeks">CCL weeks</label>
+            <input type="number" id="cclWeeks" name="cclWeeks" min="0" max="12" step="1"
+                   aria-describedby="cclWeeks-hint">
+            <span class="hint" id="cclWeeks-hint">Child Caring Leave — up to 12 weeks. Leave blank or 0 to skip.</span>
+          </div>
+          <div class="field">
+            <label for="cclAnchor">CCL starts after</label>
+            <select id="cclAnchor" name="cclAnchor" aria-live="polite"
+                    aria-describedby="cclAnchor-hint">
+              <option value="pdl">End of PDL</option>
+              <option value="fml">End of FML</option>
+              <option value="cfra">End of CFRA</option>
+            </select>
+            <span class="hint" id="cclAnchor-hint">Varies by campus — check with your local HR.</span>
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="btn-row">
+        <button type="submit" class="btn-primary">Calculate timeline</button>
+        <button type="button" id="resetBtn" class="btn-secondary">Reset</button>
+        <button type="button" id="printBtn" class="btn-secondary">Print</button>
+      </div>
+    </form>
+  </aside>
+
+  <!-- =============== RESULTS =============== -->
+  <section class="results" aria-labelledby="results-heading">
+    <h2 id="results-heading">Your timeline</h2>
+
+    <div id="statusLive" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+    <div id="resultsEmpty" class="empty">
+      Fill in the required fields on the left and select <strong>Calculate timeline</strong>
+      to see your leave schedule.
+    </div>
+
+    <div id="resultsContent" hidden>
+      <div class="callout" id="summaryCallout"></div>
+
+      <details class="accordion" id="timelineAccordion" open>
+        <summary>
+          <h3 id="events-heading">Leave events</h3>
+          <span class="accordion-toggle-label" aria-hidden="true">Show / hide</span>
+        </summary>
+        <div class="accordion-body">
+          <ul class="timeline" id="timelineList" aria-labelledby="events-heading"></ul>
+        </div>
+      </details>
+
+      <details class="accordion" id="calendarAccordion">
+        <summary>
+          <h3 id="cal-heading">Monthly calendar view</h3>
+          <span class="accordion-toggle-label" aria-hidden="true">Show / hide</span>
+        </summary>
+        <div class="accordion-body">
+          <div class="legend" aria-label="Calendar legend">
+            <span><span class="sw sw-pdl"></span>PDL</span>
+            <span><span class="sw sw-fml"></span>FML</span>
+            <span><span class="sw sw-cfra"></span>CFRA</span>
+            <span><span class="sw sw-linc"></span>Lincoln Financial</span>
+            <span><span class="sw sw-wait"></span>Waiting period</span>
+            <span><span class="sw sw-pfcb"></span>PFCB</span>
+            <span><span class="sw sw-ccl"></span>CCL</span>
+            <span><span class="sw sw-sick sw-bordered"></span>Sick day</span>
+            <span><span class="sw sw-vac sw-bordered"></span>Vacation day</span>
+            <span><span class="sw sw-lns sw-bordered"></span>Leave, no salary</span>
+            <span><span class="sw sw-holiday sw-bordered"></span>★ Holiday</span>
+          </div>
+          <div class="cal-wrap" id="calendars" aria-labelledby="cal-heading"></div>
+        </div>
+      </details>
+    </div>
+
+    <aside class="disclaimer" role="note">
+      <p><strong>Prototype disclaimer.</strong> This tool is a work-in-progress
+      accessibility prototype that replaces an Excel (.xlsm) worksheet. It is
+      <em>not</em> an application for, or a guarantee of, disability benefits through
+      Lincoln Financial or any other carrier. Always confirm your specific plan
+      details, eligibility, and dates with your campus HR Leave Administration office.</p>
+      <p class="mb-0">The calendar uses the
+      <strong>UCOP systemwide holiday calendar</strong> as its authoritative
+      baseline for 2023–2026 and projects 2027 from standard UC observation
+      rules. It also includes Winter Curtailment days commonly observed across
+      UC campuses (UCOP, UCB, UCD, UCI, UCLA, UCM, UCR, UCSD, UCSF, UCSB, UCSC).
+      Because individual locations may add or remove days in a given year —
+      especially around winter curtailment — verify specific dates with your
+      local HR if they fall inside your leave window.</p>
+    </aside>
+  </section>
+
+</main>
+
+</div><!-- /.page -->
+<script src="app.js" defer></script>
+</body>
+</html>

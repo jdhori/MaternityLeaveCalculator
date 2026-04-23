@@ -1,0 +1,884 @@
+/* ---------- utility classes (replacing former inline styles) ---------- */
+  .mt-0 { margin-top: 0; }
+  .mb-0 { margin-bottom: 0; }
+  .spacer-s { height: .6rem; }
+  .panel-heading { margin-top: 0; }
+  .required-note {
+    font-size: .82rem;
+    color: var(--ink-mute);
+    margin-top: -.3rem;
+  }
+  .required-marker {
+    color: var(--err);
+    font-weight: 700;
+  }
+
+  /* legend swatch backgrounds — one class per category, no inline styles */
+  .sw-pdl      { background: var(--c-pdl); }
+  .sw-fml      { background: var(--c-fml); }
+  .sw-cfra     { background: var(--c-cfra); }
+  .sw-linc     { background: var(--c-linc); }
+  .sw-wait     { background: var(--c-wait); }
+  .sw-pfcb     { background: var(--c-pfcb); }
+  .sw-ccl      { background: var(--c-ccl); }
+  .sw-sick     { background: var(--sick-tint); }
+  .sw-vac      { background: var(--vac-tint); }
+  .sw-lns      { background: var(--lns-tint); }
+  .sw-holiday  { background: var(--holiday-bg); }
+  .sw-bordered { border: 1px solid var(--rule); }
+
+/* ---------- design tokens ---------- */
+  :root {
+    color-scheme: light;
+
+    --ink:           #0e1726;
+    --ink-soft:      #2a3750;
+    --ink-mute:      #5a6a82;
+    --paper:         #fbfaf6;
+    --paper-2:       #f3f0e7;
+    --rule:          #c9c4b4;
+    --accent:        #8a6a2d;   /* warm ochre */
+    --accent-dark:   #6b4f18;
+    --focus:         #1763c9;
+    --ok:            #2e6f3a;
+    --warn:          #a04b12;
+    --err:           #a4182b;
+
+    /* event colors — chosen for ≥ 4.5:1 on paper */
+    --c-pdl:     #6c3a8e;
+    --c-fml:     #155d8e;
+    --c-cfra:    #0d6e63;
+    --c-linc:    #8b5e0f;
+    --c-wait:    #8a1b4e;
+    --c-sick:    #b24a00;
+    --c-vac:     #2a7a3a;
+    --c-pfcb:    #7a1c1c;
+    --c-ccl:     #4a5025;   /* deep olive — distinct from vac green */
+    --c-milestone:#0e1726;
+    --c-holiday: #5a6a82;
+    --chip-text: #fff;
+
+    /* surface + tint tokens (used by both themes) */
+    --surface-1:     #ffffff;   /* form panel, calendar, input focus */
+    --surface-2:     #f7f3ea;   /* hover states */
+    --surface-err-bg:#fef4f4;   /* invalid input tint */
+    --weekend-bg:    #faf8f2;   /* calendar weekend */
+    --holiday-bg:    #efe8d4;   /* calendar holiday */
+    --sick-tint:     #fdf0e4;   /* cal day with sick leave */
+    --vac-tint:      #e9f3eb;   /* cal day with vacation */
+    --lns-tint:      #f3eef7;   /* cal day with leave no salary */
+
+    --shadow: 0 1px 2px rgba(14,23,38,.06), 0 8px 24px -12px rgba(14,23,38,.18);
+    --radius: 6px;
+  }
+
+  /* ---------- dark theme ---------- */
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --ink:           #e8e3d5;
+    --ink-soft:      #b6ae9d;
+    --ink-mute:      #837c6d;
+    --paper:         #141519;
+    --paper-2:       #1c1d22;
+    --rule:          #383842;
+    --accent:        #d4a554;
+    --accent-dark:   #e8b965;
+    --focus:         #7aaee8;
+    --ok:            #6fbf7f;
+    --warn:          #e89a5a;
+    --err:           #ef7a82;
+
+    /* brighter event colors for legibility on dark background
+       paired with --chip-text: dark, they stay ≥ 4.5:1 on chips */
+    --c-pdl:     #c796e0;
+    --c-fml:     #7abae8;
+    --c-cfra:    #6ed3bf;
+    --c-linc:    #f0bf6b;
+    --c-wait:    #eb8fb2;
+    --c-sick:    #fab170;
+    --c-vac:     #96daa3;
+    --c-pfcb:    #eb9090;
+    --c-ccl:     #c8d28c;   /* warm olive for dark mode */
+    --c-milestone:#e8e3d5;
+    --c-holiday: #b6ae9d;
+    --chip-text: #141519;    /* dark text on bright chips */
+
+    --surface-1:     #1f2027;
+    --surface-2:     #2a2b33;
+    --surface-err-bg:#3a1d22;
+    --weekend-bg:    #17181d;
+    --holiday-bg:    #2d2920;
+    --sick-tint:     #3a2a1e;
+    --vac-tint:      #1e2e24;
+    --lns-tint:      #2a2132;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -8px rgba(0,0,0,.5);
+  }
+
+  /* ---------- reset / base ---------- */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; line-height: 1.2; color: var(--ink); }
+  h1 { font-size: clamp(1.6rem, 2.2vw + 1rem, 2.4rem); margin: 0 0 .3em; letter-spacing: -0.01em; }
+  h2 { font-size: 1.35rem; margin: 2rem 0 .7rem; letter-spacing: -0.005em; }
+  h3 { font-size: 1.08rem; margin: 1.25rem 0 .5rem; }
+  p { margin: 0 0 .8em; }
+
+  a { color: var(--focus); text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { text-decoration-thickness: 2px; }
+
+  /* visible, high-contrast focus ring for every interactive element */
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  /* skip link */
+  .skip {
+    position: absolute; left: -9999px; top: 8px;
+    background: var(--ink); color: var(--paper);
+    padding: 10px 14px; border-radius: var(--radius);
+    font-family: system-ui, sans-serif; font-weight: 600;
+    z-index: 999;
+  }
+  .skip:focus { left: 8px; }
+
+  /* ---------- layout ---------- */
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 5rem;
+  }
+  header.masthead {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .masthead-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: .25rem;
+  }
+  .masthead .eyebrow {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: .78rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent-dark); margin: 0;
+  }
+  .masthead .lede { color: var(--ink-soft); max-width: 68ch; }
+
+  /* theme toggle button */
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .45rem .8rem;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: .85rem; font-weight: 600;
+    background: var(--surface-1);
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    border-radius: var(--radius);
+    cursor: pointer;
+    min-height: 36px;
+    white-space: nowrap;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .theme-toggle:hover {
+    background: var(--surface-2);
+    color: var(--ink);
+    border-color: var(--ink-mute);
+  }
+  .theme-toggle svg {
+    width: 16px; height: 16px;
+    flex: 0 0 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  /* show only the target-state icon */
+  .theme-toggle .icon-sun  { display: none; }
+  .theme-toggle .icon-moon { display: inline; }
+  :root[data-theme="dark"] .theme-toggle .icon-sun  { display: inline; }
+  :root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+  /* smooth body-level theme transition (but only after initial paint) */
+  body.theme-transitions,
+  body.theme-transitions * {
+    transition: background-color .2s ease, color .2s ease, border-color .2s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body.theme-transitions,
+    body.theme-transitions * { transition: none; }
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 380px) 1fr;
+    gap: 2rem;
+  }
+  @media (max-width: 880px) {
+    .grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  }
+
+  /* ---------- form panel ---------- */
+  .form-panel {
+    background: var(--surface-1);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.25rem 1rem;
+    box-shadow: var(--shadow);
+    position: sticky; top: 1rem;
+    align-self: start;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+  }
+  @media (max-width: 880px) { .form-panel { position: static; } }
+
+  fieldset {
+    border: 0;
+    padding: 0;
+    margin: 0 0 1rem;
+  }
+  legend {
+    font-family: "Iowan Old Style", Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    padding: 0;
+    margin-bottom: .5rem;
+    color: var(--ink);
+  }
+
+  .field {
+    display: block;
+    margin-bottom: .85rem;
+  }
+  .field > label,
+  .field > .label {
+    display: block;
+    font-weight: 600;
+    font-size: .92rem;
+    margin-bottom: .25rem;
+    color: var(--ink-soft);
+  }
+  .field .req { color: var(--err); font-weight: 700; margin-left: 2px; }
+  .field .hint {
+    display: block;
+    font-size: .82rem;
+    color: var(--ink-mute);
+    margin-top: .2rem;
+    font-style: italic;
+  }
+  .field input[type="date"],
+  .field input[type="number"],
+  .field select {
+    width: 100%;
+    font: inherit;
+    padding: .5rem .55rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 40px;
+  }
+  .field input:focus,
+  .field select:focus {
+    border-color: var(--focus);
+    background: var(--surface-1);
+  }
+  .field input[aria-invalid="true"],
+  .field select[aria-invalid="true"] {
+    border-color: var(--err);
+    background: var(--surface-err-bg);
+  }
+  .err-msg {
+    color: var(--err);
+    font-size: .82rem;
+    margin-top: .25rem;
+    display: block;
+  }
+
+  /* field-group header — a small label that groups related fields,
+     with optional info-disclosure button for eligibility notes etc. */
+  .field-group-header {
+    display: flex;
+    align-items: center;
+    gap: .2rem;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: .92rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    margin: .4rem 0 .35rem;
+  }
+  .field-group-title { line-height: 1.2; }
+
+  /* generic disclosure button: circled-i icon that toggles an info note */
+  .info-btn {
+    background: transparent;
+    border: 0;
+    padding: 3px;
+    margin: 0;
+    cursor: pointer;
+    color: var(--ink-mute);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    transition: color .15s ease, background-color .15s ease;
+  }
+  .info-btn svg {
+    width: 16px; height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .info-btn:hover {
+    color: var(--ink);
+    background: var(--surface-2);
+  }
+  .info-btn[aria-expanded="true"] {
+    color: var(--accent-dark);
+    background: var(--surface-2);
+  }
+
+  /* the collapsible note itself */
+  .info-note {
+    margin: .3rem 0 .7rem;
+    padding: .6rem .8rem;
+    background: var(--surface-2);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: .84rem;
+    color: var(--ink-soft);
+    line-height: 1.45;
+  }
+  .info-note p { margin: 0; }
+  .info-note strong { color: var(--ink); }
+  .info-note a { color: var(--focus); }
+
+  /* row: two side-by-side fields */
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .7rem;
+  }
+
+  /* checkbox */
+  .check {
+    display: flex;
+    gap: .55rem;
+    align-items: flex-start;
+    padding: .5rem .6rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: .9rem;
+  }
+  .check input[type="checkbox"] {
+    width: 18px; height: 18px;
+    margin-top: 1px;
+    accent-color: var(--accent-dark);
+  }
+  .check:hover { background: var(--surface-2); }
+
+  /* radio group — nested fieldset with labelled options */
+  .radio-group {
+    border: 0;
+    padding: 0;
+    margin: 0 0 .85rem;
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+  }
+  .radio-group > legend {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    font-size: .92rem;
+    color: var(--ink-soft);
+    padding: 0;
+    margin-bottom: .25rem;
+  }
+  .radio {
+    display: flex;
+    gap: .55rem;
+    align-items: flex-start;
+    padding: .5rem .6rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: .9rem;
+  }
+  .radio input[type="radio"] {
+    width: 18px; height: 18px;
+    margin-top: 1px;
+    accent-color: var(--accent-dark);
+  }
+  .radio:hover { background: var(--surface-2); }
+  /* :has() is supported in all modern browsers; degrades gracefully */
+  .radio:has(input:checked) {
+    border-color: var(--accent-dark);
+    background: var(--surface-2);
+  }
+
+  /* sub-fields revealed by a radio selection (progressive disclosure) */
+  .sub-fields {
+    margin: .3rem 0 .6rem;
+    padding: .75rem .8rem;
+    background: var(--surface-2);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .sub-fields .row { margin: 0; }
+  .sub-fields .field:last-child { margin-bottom: 0; }
+
+  .btn-row {
+    display: flex; gap: .6rem; flex-wrap: wrap;
+    margin-top: .9rem;
+    padding-top: .9rem;
+    border-top: 1px solid var(--rule);
+  }
+  button {
+    font: inherit; font-weight: 600;
+    padding: .55rem 1rem;
+    border-radius: var(--radius);
+    cursor: pointer;
+    border: 1px solid transparent;
+    min-height: 40px;
+  }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .btn-primary:hover { background: var(--ink-soft); }
+  .btn-secondary {
+    background: var(--surface-1);
+    border-color: var(--rule);
+    color: var(--ink);
+  }
+  .btn-secondary:hover { background: var(--paper-2); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ---------- results panel ---------- */
+  .results {
+    min-width: 0; /* prevent grid overflow */
+  }
+
+  .callout {
+    background: var(--surface-1);
+    border-left: 4px solid var(--accent);
+    border-top: 1px solid var(--rule);
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: .9rem 1.1rem;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: .95rem;
+    color: var(--ink-soft);
+    margin-bottom: 1.5rem;
+  }
+  .callout strong { color: var(--ink); }
+
+  .empty {
+    background: var(--paper-2);
+    border: 1px dashed var(--rule);
+    border-radius: var(--radius);
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    color: var(--ink-mute);
+    font-style: italic;
+  }
+
+  /* ---------- accordion (native details/summary) ---------- */
+  .accordion {
+    margin: 1rem 0;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--surface-1);
+    overflow: hidden;
+  }
+  .accordion > summary {
+    list-style: none; /* hide default triangle */
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .85rem 1.1rem;
+    user-select: none;
+    background: var(--surface-1);
+    transition: background-color .15s ease;
+  }
+  .accordion > summary::-webkit-details-marker { display: none; }
+  .accordion > summary:hover { background: var(--surface-2); }
+  .accordion > summary::before {
+    content: "";
+    display: inline-block;
+    width: 0; height: 0;
+    border-top: 6px solid transparent;
+    border-bottom: 6px solid transparent;
+    border-left: 8px solid var(--ink-soft);
+    transition: transform .2s ease;
+    flex: 0 0 8px;
+  }
+  .accordion[open] > summary::before {
+    transform: rotate(90deg);
+  }
+  .accordion > summary h3 {
+    margin: 0;
+    font-family: "Iowan Old Style", Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--ink);
+    flex: 1;
+  }
+  .accordion-toggle-label {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--ink-mute);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .accordion-body {
+    padding: 1rem 1.1rem 1.1rem;
+    border-top: 1px solid var(--rule);
+    background: var(--paper);
+  }
+  /* legend lives inside the calendar accordion; remove its top margin
+     since the accordion body already provides padding */
+  .accordion-body .legend { margin-top: 0; }
+
+  /* timeline list */
+  .timeline {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border-top: 1px solid var(--rule);
+  }
+  .timeline {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: .8rem;
+  }
+  .timeline > li {
+    position: relative;
+    padding: .9rem 1.1rem;
+    background: var(--surface-1);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--ink-mute);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+  }
+  .timeline .label {
+    font-family: "Iowan Old Style", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  .timeline .dates {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .9rem;
+    color: var(--ink-soft);
+    display: block;
+  }
+  .timeline .dates .dur {
+    display: block;
+    color: var(--ink-mute);
+    font-style: italic;
+    margin-top: .2rem;
+    font-size: .84rem;
+  }
+  .timeline .dates .dur::before { content: ""; }
+  .timeline .meta {
+    font-size: .86rem;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    color: var(--ink-mute);
+    font-style: italic;
+    line-height: 1.4;
+    padding-top: .1rem;
+    border-top: 1px dashed var(--rule);
+    margin-top: .15rem;
+  }
+
+  /* category left-border colors — same semantic coding as before */
+  .timeline > li.cat-pdl       { border-left-color: var(--c-pdl); }
+  .timeline > li.cat-fml       { border-left-color: var(--c-fml); }
+  .timeline > li.cat-cfra      { border-left-color: var(--c-cfra); }
+  .timeline > li.cat-linc      { border-left-color: var(--c-linc); }
+  .timeline > li.cat-wait      { border-left-color: var(--c-wait); }
+  .timeline > li.cat-sick      { border-left-color: var(--c-sick); }
+  .timeline > li.cat-vac       { border-left-color: var(--c-vac); }
+  .timeline > li.cat-pfcb      { border-left-color: var(--c-pfcb); }
+  .timeline > li.cat-ccl       { border-left-color: var(--c-ccl); }
+  .timeline > li.cat-milestone { border-left-color: var(--c-milestone); }
+
+  /* ---------- legend ---------- */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: .4rem .9rem;
+    margin: 1rem 0 1.5rem;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: .85rem;
+    color: var(--ink-soft);
+  }
+  .legend > span { display: inline-flex; align-items: center; gap: .35rem; }
+  .legend .sw {
+    width: 12px; height: 12px; border-radius: 3px;
+    display: inline-block;
+  }
+
+  /* ---------- calendars ---------- */
+  .cal-wrap {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.25rem;
+  }
+  .cal {
+    background: var(--surface-1);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: .75rem;
+    box-shadow: var(--shadow);
+  }
+  .cal caption {
+    font-family: "Iowan Old Style", Georgia, serif;
+    font-weight: 700; font-size: 1.05rem;
+    text-align: left;
+    padding: .1rem .2rem .5rem;
+    caption-side: top;
+    color: var(--ink);
+  }
+  .cal table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: .78rem;
+  }
+  .cal th {
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ink-mute);
+    font-weight: 600;
+    padding: .25rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .cal td {
+    vertical-align: top;
+    padding: 0;
+    border: 1px solid transparent;
+    height: 46px;
+  }
+  .cal td.empty { background: transparent; }
+  .cal td.day {
+    border-color: var(--rule);
+    background: var(--surface-1);
+    position: relative;
+  }
+  .cal td.day .d {
+    display: block;
+    text-align: right;
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--ink);
+    padding: 1px 4px 0;
+  }
+  .cal td.day .ev {
+    display: block;
+    font-size: .62rem;
+    line-height: 1.15;
+    padding: 0 3px 2px;
+    font-weight: 600;
+    color: var(--chip-text);
+    text-align: left;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+  .cal td.day .cat {
+    display: block;
+    font-size: .58rem;
+    line-height: 1.1;
+    padding: 0 3px 2px;
+    color: var(--ink-soft);
+    font-weight: 600;
+    letter-spacing: .03em;
+  }
+
+  /* weekend + holiday shading */
+  .cal td.weekend .d { color: var(--ink-mute); }
+  .cal td.weekend { background: var(--weekend-bg); }
+  .cal td.holiday { background: var(--holiday-bg); }
+  .cal td.holiday .d::after {
+    content: " ★";
+    color: var(--c-holiday);
+  }
+
+  /* category tints */
+  .cal td.day.c-sick { background: var(--sick-tint); }
+  .cal td.day.c-vac  { background: var(--vac-tint); }
+  .cal td.day.c-lns  { background: var(--lns-tint); }  /* leave no salary */
+
+  /* event chips */
+  .chip {
+    display: block;
+    border-radius: 2px;
+    padding: 1px 3px;
+    font-size: .6rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-top: 1px;
+  }
+  .chip.pdl   { background: var(--c-pdl); color: var(--chip-text); }
+  .chip.fml   { background: var(--c-fml); color: var(--chip-text); }
+  .chip.cfra  { background: var(--c-cfra); color: var(--chip-text); }
+  .chip.linc  { background: var(--c-linc); color: var(--chip-text); }
+  .chip.wait  { background: var(--c-wait); color: var(--chip-text); }
+  .chip.pfcb  { background: var(--c-pfcb); color: var(--chip-text); }
+  .chip.ccl   { background: var(--c-ccl); color: var(--chip-text); }
+  .chip.milestone { background: var(--c-milestone); color: var(--chip-text); }
+
+  /* ---------- error summary (top-of-form consolidated errors) ---------- */
+  .error-summary {
+    margin: 0 0 1.1rem;
+    padding: .9rem 1rem 1rem;
+    background: var(--paper);
+    border: 2px solid var(--err);
+    border-left-width: 6px;
+    border-radius: var(--radius);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    color: var(--ink);
+    /* Ensure the focus ring is visible when programmatic focus lands here. */
+    outline: 0;
+  }
+  .error-summary:focus {
+    box-shadow: 0 0 0 3px var(--focus);
+  }
+  .error-summary[hidden] {
+    display: none !important;
+  }
+  .error-summary-heading {
+    margin: 0 0 .4rem;
+    font-family: "Iowan Old Style", Georgia, serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--err);
+    display: flex;
+    align-items: baseline;
+    gap: .5rem;
+  }
+  .error-summary-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+  .error-summary-intro {
+    margin: 0 0 .55rem;
+    font-size: .92rem;
+    color: var(--ink-soft);
+  }
+  .error-summary-list {
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: .92rem;
+  }
+  .error-summary-list li { margin-bottom: .25rem; }
+  .error-summary-list li:last-child { margin-bottom: 0; }
+  .error-summary-list a {
+    color: var(--err);
+    text-decoration: underline;
+    font-weight: 600;
+  }
+  .error-summary-list a:hover { text-decoration: none; }
+  .error-summary-list a:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* ---------- accessibility live region for messages ---------- */
+  .sr-only {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* ---------- disclaimers ---------- */
+  .disclaimer {
+    margin-top: 3rem;
+    padding: 1rem 1.2rem;
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    font-size: .85rem;
+    color: var(--ink-soft);
+    font-family: ui-sans-serif, system-ui, sans-serif;
+  }
+  .disclaimer strong { color: var(--ink); }
+
+  /* ---------- print ---------- */
+  @media print {
+    /* Force light palette for print regardless of active theme */
+    :root, :root[data-theme="dark"] {
+      color-scheme: light;
+      --ink:        #0e1726;
+      --ink-soft:   #2a3750;
+      --ink-mute:   #5a6a82;
+      --paper:      #ffffff;
+      --paper-2:    #f3f0e7;
+      --rule:       #999999;
+      --surface-1:  #ffffff;
+      --surface-2:  #f7f3ea;
+      --weekend-bg: #faf8f2;
+      --holiday-bg: #efe8d4;
+      --sick-tint:  #fdf0e4;
+      --vac-tint:   #e9f3eb;
+      --lns-tint:   #f3eef7;
+      --c-pdl: #6c3a8e; --c-fml: #155d8e; --c-cfra: #0d6e63;
+      --c-linc: #8b5e0f; --c-wait: #8a1b4e; --c-sick: #b24a00;
+      --c-vac: #2a7a3a; --c-pfcb: #7a1c1c; --c-ccl: #4a5025;
+      --c-milestone: #0e1726; --c-holiday: #5a6a82;
+      --chip-text: #ffffff;
+    }
+    body { background: #fff; font-size: 11pt; }
+    .form-panel, .btn-row, .skip, .theme-toggle, .info-btn, .error-summary { display: none !important; }
+    /* In print, force accordions open and hide their summary affordance */
+    .accordion { border: 0; background: transparent; }
+    .accordion > summary { padding: 0; background: transparent; pointer-events: none; }
+    .accordion > summary::before,
+    .accordion-toggle-label { display: none; }
+    .accordion-body { padding: 0; border-top: 0; background: transparent; }
+    details.accordion:not([open]) > *:not(summary) { display: block !important; }
+    .grid { display: block; }
+    .cal-wrap { grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+    .cal { box-shadow: none; border: 1px solid #999; page-break-inside: avoid; }
+    .timeline li { page-break-inside: avoid; }
+    header.masthead { border-bottom: 1px solid #666; }
+    a { color: inherit; text-decoration: none; }
+  }
