@@ -167,10 +167,17 @@ function calculate(input) {
   const {
     lastDay, dueDate, actualBirth, returnDate,
     deliveryType, sickHours, vacHours,
-    waitingPeriodDays, fmlEligible, pfcbWeeks, pfcbStart,
+    waitingPeriodDays,
+    pdlEligible, fmlEligible, cfraEligible,
+    pfcbWeeks, pfcbStart,
     cclWeeks, cclAnchor,
     scheduleType, hoursPerDay, daysPerWeek, fallbackStrategy
   } = input;
+  /* `lastDay` is the field id, but the field semantically represents the
+     Leave Start Date — the first day of leave. We keep the variable name
+     for diff stability while the meaning is documented here. All downstream
+     date math assumes this is day 1 of leave, NOT the last day at work. */
+  const leaveStart = lastDay;
 
   /* --- Schedule-derived constants ---
      Regular employees (5×8): 8 hr/day, 5 days/week, sick cap 22 workdays.
@@ -189,11 +196,14 @@ function calculate(input) {
   const sickDays    = Math.min(sickDaysRaw, maxSickCap);
   const sickCapped  = sickDaysRaw > maxSickCap;
 
-  /* --- SICK leave span --- */
+  /* --- SICK leave span ---
+     Starts on the leave-start date (assumed to be a workday) and runs for
+     `sickDays` working days inclusive. addWorkdays(d, 0) returns d unchanged
+     if d is itself a workday. */
   let sickBegin = null, sickEnd = null;
   if (sickDays >= 1) {
-    sickBegin = addWorkdays(lastDay, 1);
-    sickEnd   = addWorkdays(lastDay, sickDays);
+    sickBegin = addWorkdays(leaveStart, 0);
+    sickEnd   = addWorkdays(sickBegin, sickDays - 1);
   }
 
   /* --- VACATION span ---
@@ -207,7 +217,7 @@ function calculate(input) {
 
   if (useVacation) {
     vacBegin = sickDays === 0
-      ? addWorkdays(lastDay, 1)
+      ? addWorkdays(leaveStart, 0)
       : addWorkdays(sickEnd, 1);
     vacEnd = addWorkdays(vacBegin, vacDays - 1);
   } else if (vacDays >= 1 && sickCoversWaiting) {
@@ -217,11 +227,11 @@ function calculate(input) {
   }
 
   /* --- WAITING PERIOD ---
-     Calendar-based 14-day (or plan-selected) window starting the day after
-     last-day-worked. If sick covers or exceeds the waiting-period workdays,
+     Calendar-based 14-day (or plan-selected) window starting on the leave
+     start date. If sick covers or exceeds the waiting-period workdays,
      the effective "still-waiting-for-disability-pay" window extends until
      sick runs out (capped at maxSickCap). */
-  const waitBegin = addDays(lastDay, 1);
+  const waitBegin = leaveStart;
   let waitEnd;
   if (sickDays <= waitingWorkdays) {
     waitEnd = addDays(waitBegin, (waitingPeriodDays || 14) - 1);
@@ -229,33 +239,43 @@ function calculate(input) {
     waitEnd = sickEnd;
   }
 
-  /* --- Lincoln Financial CLAIM FILE date (row 53): 28 days before lastDay --- */
-  const fileClaim = addDays(lastDay, -28);
+  /* --- Lincoln Financial CLAIM FILE date: 28 days before leave start.
+         Health LOA recommends 1–2 weeks before; plan ceiling is 30 days. --- */
+  const fileClaim = addDays(leaveStart, -28);
 
   /* --- PDL (row 62): 42 natural / 56 C-section.
-         Starts day after lastDay. Ends from (actualBirth || dueDate). --- */
-  const pdlBegin = addDays(lastDay, 1);
+         Starts on leave-start date. Ends `pdlDurationDays` calendar days
+         after birth (inclusive of the birth day), so we subtract 1 from
+         the addDays offset. Only displayed when the employee marks PDL
+         eligibility. --- */
+  let pdlBegin = null, pdlEnd = null;
   const pdlDurationDays = deliveryType === 'C-section' ? 56 : 42;
   const pdlAnchor = actualBirth || dueDate;
-  const pdlEnd = addDays(pdlAnchor, pdlDurationDays);
+  if (pdlEligible && pdlAnchor) {
+    pdlBegin = leaveStart;
+    pdlEnd   = addDays(pdlAnchor, pdlDurationDays - 1);
+  }
 
   /* --- Lincoln Financial income (row 59):
          Begins day after waiting period ends, ends when PDL ends.
          If PDL ends before waiting period completes, income never pays. --- */
   let lincBegin = null, lincEnd = null, lincNote = '';
-  if (pdlEnd < waitEnd) {
+  if (!pdlEnd) {
+    /* No PDL means no disability benefit window to anchor income to. */
+    lincNote = '';
+  } else if (pdlEnd < waitEnd) {
     lincNote = 'Disability ends before benefit pays';
   } else {
     lincBegin = addDays(waitEnd, 1);
     lincEnd   = pdlEnd;
   }
 
-  /* --- FML (row 65): 84 days from FML begin (= pdlBegin).
+  /* --- FMLA (row 65): 84 days from FMLA begin (= leave start).
          Capped at Dec 31 of start year if it would cross year boundary. --- */
   let fmlBegin = null, fmlEnd = null, fmlCapped = false;
   let fmlNewYearBegin = null, fmlNewYearEnd = null;
   if (fmlEligible) {
-    fmlBegin = pdlBegin;
+    fmlBegin = leaveStart;
     const naive = addDays(fmlBegin, 83); // 84 days inclusive
     if (naive.getFullYear() > fmlBegin.getFullYear()) {
       fmlCapped = true;
@@ -267,11 +287,11 @@ function calculate(input) {
     }
   }
 
-  /* --- CFRA (row 71): 84 days starting day after PDL ends.
-         Only if FML eligible. --- */
+  /* --- CFRA (row 71): 84 days starting day after PDL ends (if PDL is in
+         play), else day after leave starts (CFRA-only without PDL). --- */
   let cfraBegin = null, cfraEnd = null;
-  if (fmlEligible) {
-    cfraBegin = addDays(pdlEnd, 1);
+  if (cfraEligible) {
+    cfraBegin = pdlEnd ? addDays(pdlEnd, 1) : leaveStart;
     cfraEnd   = addDays(cfraBegin, 83);
   }
 
@@ -410,8 +430,10 @@ function renderTimeline(r) {
     list.appendChild(li);
   };
 
-  push('milestone', 'Last day worked', '', r.lastDay, null);
-  if (r.fileClaim) push('linc', 'File Lincoln Financial claim', '28 days before last day worked', r.fileClaim, null);
+  push('milestone', 'Leave start date', '', r.lastDay, null);
+  if (r.fileClaim) push('linc', 'File Lincoln Financial claim',
+    'May file up to 30 days before leave begins. Health LOA recommends 1–2 weeks before. Requires medical certification; the LOA team processes the leave.',
+    r.fileClaim, null);
   push('milestone', 'Estimated due date', '', r.dueDate, null);
   if (r.actualBirth) push('milestone', 'Actual birth date', '', r.actualBirth, null);
 
@@ -437,15 +459,17 @@ function renderTimeline(r) {
   if (r.lincBegin) push('linc', 'Lincoln Financial disability income', '', r.lincBegin, r.lincEnd);
   else if (r.lincNote) pushNote('linc', 'Lincoln Financial disability income', r.lincNote);
 
-  push('pdl', 'Pregnancy Disability Leave (PDL)',
-       r.pdlEnd && r.actualBirth ? 'Anchored to actual birth date' : 'Anchored to estimated due date',
-       r.pdlBegin, r.pdlEnd);
+  if (r.pdlBegin) {
+    push('pdl', 'Pregnancy Disability Leave (PDL)',
+         r.actualBirth ? 'Anchored to actual birth date' : 'Anchored to estimated due date',
+         r.pdlBegin, r.pdlEnd);
+  }
 
   if (r.fmlBegin) {
-    push('fml', 'Family Medical Leave (FML)',
+    push('fml', 'Family & Medical Leave Act (FMLA)',
          r.fmlCapped ? 'Capped at calendar year end — balance carries over' : '',
          r.fmlBegin, r.fmlEnd);
-    if (r.fmlNewYearBegin) push('fml', 'FML — new calendar year', '', r.fmlNewYearBegin, r.fmlNewYearEnd);
+    if (r.fmlNewYearBegin) push('fml', 'FMLA — new calendar year', '', r.fmlNewYearBegin, r.fmlNewYearEnd);
   }
 
   if (r.cfraBegin) push('cfra', 'California Family Rights Act (CFRA)', '', r.cfraBegin, r.cfraEnd);
@@ -457,9 +481,9 @@ function renderTimeline(r) {
   }
 
   if (r.cclBegin) {
-    const anchorLabel = { pdl: 'PDL', fml: 'FML', cfra: 'CFRA' }[r.cclAnchorUsed];
+    const anchorLabel = { pdl: 'PDL', fml: 'FMLA', cfra: 'CFRA' }[r.cclAnchorUsed];
     const fellBack = r.cclAnchorUsed !== r.cclAnchorRequested;
-    const requestedLabel = { pdl: 'PDL', fml: 'FML', cfra: 'CFRA' }[r.cclAnchorRequested];
+    const requestedLabel = { pdl: 'PDL', fml: 'FMLA', cfra: 'CFRA' }[r.cclAnchorRequested];
     let cclMeta = r.cclWeeks + ' week' + (r.cclWeeks === 1 ? '' : 's')
       + ' · starts day after ' + anchorLabel + ' ends';
     if (fellBack) {
@@ -490,9 +514,11 @@ function renderSummary(r) {
     container.appendChild(document.createTextNode(' ' + body));
   };
 
-  addLine('Pregnancy Disability Leave', fmtShort(r.pdlBegin) + ' → ' + fmtShort(r.pdlEnd) + '.');
+  if (r.pdlBegin) {
+    addLine('Pregnancy Disability Leave', fmtShort(r.pdlBegin) + ' → ' + fmtShort(r.pdlEnd) + '.');
+  }
   if (r.fmlBegin) {
-    addLine('FML', fmtShort(r.fmlBegin) + ' → ' + fmtShort(r.fmlEnd)
+    addLine('FMLA', fmtShort(r.fmlBegin) + ' → ' + fmtShort(r.fmlEnd)
       + (r.fmlCapped ? ' (calendar year cap)' : '') + '.');
   }
   if (r.cfraBegin) {
@@ -506,7 +532,7 @@ function renderSummary(r) {
       + ' (' + r.pfcbWeeks + ' week' + (r.pfcbWeeks === 1 ? '' : 's') + ').');
   }
   if (r.cclBegin) {
-    const anchorLabel = { pdl: 'PDL', fml: 'FML', cfra: 'CFRA' }[r.cclAnchorUsed];
+    const anchorLabel = { pdl: 'PDL', fml: 'FMLA', cfra: 'CFRA' }[r.cclAnchorUsed];
     addLine('CCL', fmtShort(r.cclBegin) + ' → ' + fmtShort(r.cclEnd)
       + ' (' + r.cclWeeks + ' week' + (r.cclWeeks === 1 ? '' : 's')
       + ', after ' + anchorLabel + ').');
@@ -558,7 +584,7 @@ function buildEventIndex(r) {
 
   /* event chips — only at begin/end dates to keep calendar readable */
   const mark = (d, type, label) => add(d, type, label);
-  mark(r.lastDay, 'milestone', 'Last day worked');
+  mark(r.lastDay, 'milestone', 'Leave start date');
   mark(r.dueDate, 'milestone', 'Est due date');
   mark(r.actualBirth, 'milestone', 'Actual birth');
   mark(r.returnDate, 'milestone', 'Return to work');
@@ -748,6 +774,21 @@ function collect() {
     const el = document.querySelector('input[name="' + name + '"]:checked');
     return el ? el.value : null;
   };
+  /* Eligibility checkboxes:
+     PDL is its own track. FMLA and CFRA are separate federal/state programs;
+     "FMLA/CFRA" is a convenience option for the common UC case where the
+     employee qualifies for both and the two run concurrently. The downstream
+     calc treats fmlEligible / cfraEligible as the gates for displaying each
+     leave block — checking the combined option turns both on. */
+  const cb = id => {
+    const el = document.getElementById(id);
+    return el ? el.checked : false;
+  };
+  const eligPDL = cb('eligPDL');
+  const eligFML = cb('eligFML');
+  const eligCFRA = cb('eligCFRA');
+  const eligFMLCFRA = cb('eligFMLCFRA');
+
   return {
     lastDay: parseISO(v('lastDay')),
     dueDate: parseISO(v('dueDate')),
@@ -757,7 +798,9 @@ function collect() {
     sickHours: n('sickHours'),
     vacHours: n('vacHours'),
     waitingPeriodDays: parseInt(v('waitingPeriod'),10) || 14,
-    fmlEligible: document.getElementById('fmlEligible').checked,
+    pdlEligible: eligPDL,
+    fmlEligible: eligFML || eligFMLCFRA,
+    cfraEligible: eligCFRA || eligFMLCFRA,
     pfcbWeeks: n('pfcbWeeks'),
     pfcbStart: parseISO(v('pfcbStart')),
     cclWeeks: n('cclWeeks'),
@@ -773,7 +816,7 @@ function collect() {
    in one place means the error summary, inline errors, and any future
    export share the same wording. */
 const FIELD_LABELS = {
-  lastDay:      'Last day worked',
+  lastDay:      'Leave start date',
   dueDate:      'Estimated due date',
   deliveryType: 'Delivery type',
   sickHours:    'Total sick hours',
@@ -796,7 +839,7 @@ function validate(input) {
   };
 
   if (!input.lastDay) {
-    addError('lastDay', 'Last day worked is required.');
+    addError('lastDay', 'Leave start date is required.');
   }
   if (!input.dueDate) {
     addError('dueDate', 'Estimated due date is required.');
@@ -813,7 +856,7 @@ function validate(input) {
   }
 
   if (input.lastDay && input.dueDate && input.lastDay > input.dueDate) {
-    addError('dueDate', 'Due date should be on or after last day worked.');
+    addError('dueDate', 'Due date should be on or after the leave start date.');
   }
 
   if (input.scheduleType === 'variable') {
@@ -905,10 +948,18 @@ function run(e) {
     renderCalendars(r);
     document.getElementById('resultsEmpty').hidden = true;
     document.getElementById('resultsContent').hidden = false;
-    liveSay(
-      'Timeline updated. Pregnancy Disability Leave runs from '
-      + fmtShort(r.pdlBegin) + ' to ' + fmtShort(r.pdlEnd) + '.'
-    );
+    /* Headline announcement: prefer PDL if shown, else FMLA, else just confirm. */
+    let saidMsg;
+    if (r.pdlBegin) {
+      saidMsg = 'Timeline updated. Pregnancy Disability Leave runs from '
+        + fmtShort(r.pdlBegin) + ' to ' + fmtShort(r.pdlEnd) + '.';
+    } else if (r.fmlBegin) {
+      saidMsg = 'Timeline updated. Family and Medical Leave Act leave runs from '
+        + fmtShort(r.fmlBegin) + ' to ' + fmtShort(r.fmlEnd) + '.';
+    } else {
+      saidMsg = 'Timeline updated.';
+    }
+    liveSay(saidMsg);
   } catch (err) {
     console.error('Calculation failed:', err);
     liveSay('Something went wrong while calculating. Check the browser console for details.');

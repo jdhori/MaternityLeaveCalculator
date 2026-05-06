@@ -42,10 +42,10 @@ Each Excel mechanism was mapped to a direct web equivalent:
 | `WORKDAY.INTL(start, n, 1, holidays)` | `addWorkdays(start, n)` in `app.js` |
 | `NETWORKDAYS.INTL(start, end, 1, holidays)` | `networkdays(start, end)` in `app.js` |
 | Holiday reference table | `HOLIDAYS` Set in `app.js`, seeded from the UCOP systemwide calendar (2023–2027) + Winter Curtailment |
-| Row 53 — claim file date (28 days before LDW) | `fileClaim = addDays(lastDay, -28)` |
+| Row 53 — claim file date (28 days before leave start) | `fileClaim = addDays(leaveStart, -28)` |
 | Row 59 — Lincoln Financial income window | Computed from waiting-period end to PDL end |
-| Row 62 — PDL duration (42 natural / 56 C-section) | `pdlDurationDays` branch |
-| Row 65 — FML (84 days, calendar-year cap) | `fmlBegin`/`fmlEnd` + carry-over to new year |
+| Row 62 — PDL duration (42 natural / 56 C-section, inclusive of birth day) | `pdlEnd = addDays(pdlAnchor, pdlDurationDays - 1)` |
+| Row 65 — FMLA (84 days, calendar-year cap) | `fmlBegin`/`fmlEnd` + carry-over to new year |
 | Row 71 — CFRA (84 days after PDL) | `cfraBegin`/`cfraEnd` |
 | Row 74 — PFCB | User-supplied weeks, default start = day after PDL |
 | L30 — End of PIE (31 days after birth) | `endPIE` |
@@ -62,36 +62,36 @@ All math runs client-side in a single `calculate(input)` function in `app.js`. N
 
 ### Inputs the form accepts
 
-- **Last day worked** (required) — the last day actually at work before leave starts.
+- **Leave start date** (required) — the first day of leave. Variable employees should pick the actual first day off, not necessarily the day after the last shift.
 - **Estimated due date** (required) — used as the PDL anchor when no actual birth date is provided.
 - **Actual birth date** (optional) — once known, re-anchors PDL and computes End of PIE + first birthday.
 - **Estimated return to work** (optional) — shown as a milestone on the timeline.
 - **Delivery type** (required) — Natural (42-day PDL) or C-section (56-day PDL).
 - **Employee schedule type**:
   - *Regular* — 40 hr/wk, 5 × 8, sick cap of 22 workdays.
-  - *Variable* — user-specified `hoursPerDay` and `daysPerWeek` (3×12, 4×10, etc.), sick cap of 30 workdays.
+  - *Variable* — user-specified `hoursPerDay` and `daysPerWeek` (3×12, 4×10, etc.), sick cap of 30 calendar days.
 - **Sick hours** (required) and **vacation hours** (optional) — converted to working days using the selected schedule.
 - **Fallback strategy** — if sick leave doesn't cover the waiting period, either use vacation first or go straight to leave-without-pay.
 - **Disability waiting period** — 7 / 14 / 30 / 90 / 180 days (Lincoln Financial plan-selectable).
-- **FML eligibility** — checkbox that gates FML and CFRA computations.
+- **Job-protection eligibility** — four independent checkboxes for PDL, FMLA, CFRA, and FMLA/CFRA. PDL is checked by default. FMLA and CFRA each gate their own timeline rows; the combined "FMLA/CFRA" option turns both on (the typical UC case where the two run concurrently).
 - **PFCB weeks** (0–8) and **PFCB begin date** (optional; defaults to day after PDL ends).
-- **CCL weeks** (0–12) and **CCL anchor** — start after end of PDL, FML, or CFRA. Falls back automatically if the requested anchor isn't available in the scenario.
+- **CCL weeks** (0–26) and **CCL anchor** — start after end of PDL, FMLA, or CFRA. Falls back automatically if the requested anchor isn't available in the scenario. Up to 14 weeks after FMLA/CFRA ends, or up to 26 weeks if not eligible for FMLA/CFRA — described in the in-form info button.
 
 ### What the calculator outputs
 
-**Summary callout** — at-a-glance dates for PDL, FML, CFRA, Lincoln income, PFCB, and CCL.
+**Summary callout** — at-a-glance dates for PDL, FMLA, CFRA, Lincoln income, PFCB, and CCL.
 
 **Leave events timeline** — a chronological, categorized list including:
 
-- Last day worked
-- Claim file deadline (28 days before LDW)
+- Leave start date
+- Claim file suggestion (28 days before leave starts; LOA recommends 1–2 weeks before, plan ceiling is 30 days)
 - Estimated due date and, if provided, actual birth date
 - Sick leave span (with note if capped by schedule maximum)
 - Vacation span *or* a note explaining why vacation isn't being used
 - Disability waiting period
 - Lincoln Financial disability income window (with note if PDL ends before benefits would start)
-- Pregnancy Disability Leave (PDL)
-- Family Medical Leave (FML) — including split display when it crosses a calendar year
+- Pregnancy Disability Leave (PDL) — when the employee is PDL-eligible
+- Family & Medical Leave Act (FMLA) — including split display when it crosses a calendar year
 - California Family Rights Act (CFRA)
 - Pay for Family Care and Bonding (PFCB)
 - Child Caring Leave (CCL) — annotated if a fallback anchor was used

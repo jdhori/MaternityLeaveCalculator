@@ -40,10 +40,12 @@
   </div>
   <h1>Maternity Leave Timeline Calculator</h1>
   <p class="lede">
-    Enter last day worked, estimated due date, and leave balances to generate a
-    timeline of Pregnancy Disability Leave (PDL), Family Medical Leave (FML),
-    California Family Rights Act (CFRA) leave, disability waiting period, and
-    Lincoln Financial income dates. Designed for use across all UC locations —
+    Enter leave start date, estimated due date, and leave balances to generate
+    an <strong>estimated</strong> timeline of Pregnancy Disability Leave (PDL),
+    Family &amp; Medical Leave Act (FMLA), California Family Rights Act (CFRA)
+    leave, disability waiting period, and Lincoln Financial income dates. This
+    is a planning tool only — your campus Leave Specialist confirms the actual
+    dates. Designed for use across all UC locations —
     UCOP, UC Berkeley, UC Davis, UC Irvine, UCLA, UC Merced, UC Riverside,
     UC San Diego, UC San Francisco, UC Santa Barbara, and UC Santa Cruz.
   </p>
@@ -82,10 +84,10 @@
         <legend>Key dates</legend>
 
         <div class="field">
-          <label for="lastDay">Last day worked <span class="req" aria-hidden="true">*</span></label>
+          <label for="lastDay">Leave start date <span class="req" aria-hidden="true">*</span></label>
           <input type="date" id="lastDay" name="lastDay" required
                  aria-required="true" aria-describedby="lastDay-hint lastDay-err">
-          <span class="hint" id="lastDay-hint">The last day you actually worked before leave begins.</span>
+          <span class="hint" id="lastDay-hint">The first day of your leave. Variable employees: pick the actual first day off, not necessarily the day after your last shift.</span>
           <span class="err-msg" id="lastDay-err" role="alert" hidden></span>
         </div>
 
@@ -140,7 +142,7 @@
           </label>
         </fieldset>
         <span class="hint" id="schedule-hint">
-          Regular employees max out at 22 working days of sick usage; variable employees max out at 30 working days based on their schedule.
+          Regular employees max out at 22 working days of sick usage; variable employees max out at 30 calendar days based on their schedule.
         </span>
 
         <div class="sub-fields" id="variableFields" hidden>
@@ -208,10 +210,30 @@
 
       <fieldset>
         <legend>Additional leave</legend>
-        <label class="check">
-          <input type="checkbox" id="fmlEligible" name="fmlEligible">
-          <span>I am eligible for Family Medical Leave (FML)</span>
-        </label>
+        <fieldset class="eligibility-group">
+          <legend class="sub-legend">Job-protection eligibility</legend>
+          <span class="hint" id="elig-hint">Check every program you qualify for. PDL is automatic for California pregnancy; FMLA and CFRA require 12 months of service plus 1,250 hours. Most UC employees who meet the FMLA threshold also meet CFRA — check FMLA/CFRA in that case.</span>
+          <label class="check">
+            <input type="checkbox" id="eligPDL" name="eligPDL" checked
+                   aria-describedby="elig-hint">
+            <span>I am eligible for Pregnancy Disability Leave (PDL)</span>
+          </label>
+          <label class="check">
+            <input type="checkbox" id="eligFML" name="eligFML"
+                   aria-describedby="elig-hint">
+            <span>I am eligible for Family &amp; Medical Leave Act (FMLA)</span>
+          </label>
+          <label class="check">
+            <input type="checkbox" id="eligCFRA" name="eligCFRA"
+                   aria-describedby="elig-hint">
+            <span>I am eligible for California Family Rights Act (CFRA)</span>
+          </label>
+          <label class="check">
+            <input type="checkbox" id="eligFMLCFRA" name="eligFMLCFRA"
+                   aria-describedby="elig-hint">
+            <span>I am eligible for FMLA/CFRA</span>
+          </label>
+        </fieldset>
         <div class="spacer-s"></div>
         <div class="row">
           <div class="field">
@@ -247,14 +269,17 @@
           on your employment classification and, for represented employees, the
           terms of your union contract. Please check with your Union contract or
           your campus Leave Specialist for more details.</p>
+          <p><strong>How long?</strong> Up to <strong>14 weeks</strong> after
+          FMLA/CFRA ends, or up to <strong>26 weeks</strong> if you are not
+          eligible for FMLA/CFRA.</p>
         </div>
 
         <div class="row">
           <div class="field">
             <label for="cclWeeks">CCL weeks</label>
-            <input type="number" id="cclWeeks" name="cclWeeks" min="0" max="12" step="1"
+            <input type="number" id="cclWeeks" name="cclWeeks" min="0" max="26" step="1"
                    aria-describedby="cclWeeks-hint">
-            <span class="hint" id="cclWeeks-hint">Child Caring Leave — up to 12 weeks. Leave blank or 0 to skip.</span>
+            <span class="hint" id="cclWeeks-hint">Leave blank or 0 to skip. See the info button above for the week limits.</span>
           </div>
           <div class="field">
             <label for="cclAnchor">CCL starts after</label>
