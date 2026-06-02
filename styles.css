@@ -164,6 +164,7 @@
     border-bottom: 1px solid var(--rule);
     padding-bottom: 1.25rem;
     margin-bottom: 1.5rem;
+    text-align: center;
   }
   .masthead-top {
     display: flex;
@@ -177,7 +178,13 @@
     font-size: .78rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
     color: var(--accent-dark); margin: 0;
   }
-  .masthead .lede { color: var(--ink-soft); max-width: 68ch; }
+  .masthead .lede { color: var(--ink-soft); max-width: 68ch; margin-left: auto; margin-right: auto; }
+  .masthead .staff-note {
+    max-width: 68ch;
+    margin: .6rem auto 0;
+    font-weight: 600;
+    color: var(--ink);
+  }
 
   /* theme toggle button */
   .theme-toggle {
@@ -867,6 +874,12 @@
       --chip-text: #ffffff;
     }
     body { background: #fff; font-size: 11pt; }
+    /* Print in color: force backgrounds and tints to render so the colored
+       leave categories, chips, and calendar fills appear on the printout. */
+    *, *::before, *::after {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
     .form-panel, .btn-row, .skip, .theme-toggle, .info-btn, .error-summary { display: none !important; }
     /* In print, force accordions open and hide their summary affordance */
     .accordion { border: 0; background: transparent; }
@@ -881,4 +894,8 @@
     .timeline li { page-break-inside: avoid; }
     header.masthead { border-bottom: 1px solid #666; }
     a { color: inherit; text-decoration: none; }
+    /* Keep all the dates (summary + leave events) on their own page(s) and
+       start the monthly calendar on a fresh page, so each can be printed
+       independently. */
+    #calendarAccordion { break-before: page; page-break-before: always; }
   }

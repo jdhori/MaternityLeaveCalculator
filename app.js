@@ -142,6 +142,20 @@ const addWorkdays = (start, n) => {
   return d;
 };
 
+/* PFCB end date: counts `n` calendar days forward from start (inclusive) but
+   does NOT count holidays toward the total. Each holiday inside the window
+   pushes the end out by one calendar day, so the employee gets the full 8
+   weeks of PFCB without holidays being deducted. Weekends still count. */
+const addPfcbDays = (start, n) => {
+  let d = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  let counted = 0;
+  while (true) {
+    if (!isHoliday(d)) counted++;
+    if (counted >= n) return d;
+    d = addDays(d, 1);
+  }
+};
+
 /* Excel NETWORKDAYS.INTL(start, end, 1, holidays): inclusive count of
    business days between two dates. */
 const networkdays = (start, end) => {
@@ -167,7 +181,7 @@ function calculate(input) {
   const {
     lastDay, dueDate, actualBirth, returnDate,
     deliveryType, sickHours, vacHours,
-    waitingPeriodDays,
+    waitingPeriodDays, appliesLincoln,
     pdlEligible, fmlEligible, cfraEligible,
     pfcbWeeks, pfcbStart,
     cclWeeks, cclAnchor,
@@ -227,21 +241,26 @@ function calculate(input) {
   }
 
   /* --- WAITING PERIOD ---
-     Calendar-based 14-day (or plan-selected) window starting on the leave
-     start date. If sick covers or exceeds the waiting-period workdays,
-     the effective "still-waiting-for-disability-pay" window extends until
-     sick runs out (capped at maxSickCap). */
-  const waitBegin = leaveStart;
-  let waitEnd;
-  if (sickDays <= waitingWorkdays) {
-    waitEnd = addDays(waitBegin, (waitingPeriodDays || 14) - 1);
-  } else {
-    waitEnd = sickEnd;
+     Only applies when the employee is applying for disability leave through
+     Lincoln Financial. Calendar-based 14-day window starting on the leave
+     start date. If sick covers or exceeds the waiting-period workdays, the
+     effective "still-waiting-for-disability-pay" window extends until sick
+     runs out (capped at maxSickCap). When the employee is not applying for
+     Lincoln disability, there is no waiting period. */
+  let waitBegin = null, waitEnd = null;
+  if (appliesLincoln) {
+    waitBegin = leaveStart;
+    if (sickDays <= waitingWorkdays) {
+      waitEnd = addDays(waitBegin, (waitingPeriodDays || 14) - 1);
+    } else {
+      waitEnd = sickEnd;
+    }
   }
 
   /* --- Lincoln Financial CLAIM FILE date: 28 days before leave start.
-         Health LOA recommends 1–2 weeks before; plan ceiling is 30 days. --- */
-  const fileClaim = addDays(leaveStart, -28);
+         Health LOA recommends 1–2 weeks before; plan ceiling is 30 days.
+         Only relevant when applying for Lincoln disability. --- */
+  const fileClaim = appliesLincoln ? addDays(leaveStart, -28) : null;
 
   /* --- PDL (row 62): 42 natural / 56 C-section.
          Starts on leave-start date. Ends `pdlDurationDays` calendar days
@@ -260,8 +279,8 @@ function calculate(input) {
          Begins day after waiting period ends, ends when PDL ends.
          If PDL ends before waiting period completes, income never pays. --- */
   let lincBegin = null, lincEnd = null, lincNote = '';
-  if (!pdlEnd) {
-    /* No PDL means no disability benefit window to anchor income to. */
+  if (!appliesLincoln || !pdlEnd) {
+    /* Not applying for Lincoln disability, or no PDL window to anchor to. */
     lincNote = '';
   } else if (pdlEnd < waitEnd) {
     lincNote = 'Disability ends before benefit pays';
@@ -307,7 +326,9 @@ function calculate(input) {
       pfcbStartInferred = true;
     }
     if (pfcbStartResolved) {
-      pfcbEnd = addDays(pfcbStartResolved, pfcbWeeks * 7 - 1);
+      /* Holidays inside the PFCB window are not deducted from the 8 weeks —
+         each one extends the end date by a day. */
+      pfcbEnd = addPfcbDays(pfcbStartResolved, pfcbWeeks * 7);
     }
   }
 
@@ -381,7 +402,7 @@ function durationDays(start, end) {
   if (!start || !end) return '';
   const ms = end - start;
   const days = Math.round(ms / (1000*60*60*24)) + 1;
-  return days + ' day' + (days === 1 ? '' : 's');
+  return days + ' calendar day' + (days === 1 ? '' : 's');
 }
 
 /* Tiny DOM helpers used by renderTimeline and renderSummary. Keeping
@@ -430,34 +451,13 @@ function renderTimeline(r) {
     list.appendChild(li);
   };
 
+  /* Order requested by the service-channel management team: the primary
+     leave blocks come first, in this sequence — Leave start date, Disability
+     waiting period, Pregnancy Disability Leave, Family & Medical Leave, then
+     CFRA. Supporting milestones and pay items follow. */
   push('milestone', 'Leave start date', '', r.lastDay, null);
-  if (r.fileClaim) push('linc', 'File Lincoln Financial claim',
-    'May file up to 30 days before leave begins. Health LOA recommends 1–2 weeks before. Requires medical certification; the LOA team processes the leave.',
-    r.fileClaim, null);
-  push('milestone', 'Estimated due date', '', r.dueDate, null);
-  if (r.actualBirth) push('milestone', 'Actual birth date', '', r.actualBirth, null);
-
-  if (r.sickBegin) {
-    let sickMeta = r.sickDays + ' day' + (r.sickDays===1?'':'s') + ' used';
-    if (r.sickCapped) {
-      sickMeta += ' (capped at ' + r.maxSickCap + ' — you have ' + r.sickDaysRaw + ' total)';
-    }
-    push('sick', 'Sick leave', sickMeta, r.sickBegin, r.sickEnd);
-  }
-  if (r.vacBegin) push('vac', 'Vacation leave', r.vacDays + ' day' + (r.vacDays===1?'':'s') + ' used', r.vacBegin, r.vacEnd);
-  else if (r.vacNote) pushNote('vac', 'Vacation leave', r.vacNote);
-
-  if (r.sickDays < r.waitingWorkdays && r.fallbackStrategy === 'lns') {
-    const gapDays = r.waitingWorkdays - r.sickDays;
-    pushNote('wait', 'Leave without pay (waiting-period gap)',
-      'Sick covers ' + r.sickDays + ' of ' + r.waitingWorkdays + ' waiting-period working days. ' +
-      gapDays + ' working day' + (gapDays===1?'':'s') + ' will be unpaid.');
-  }
 
   push('wait', 'Disability waiting period', '', r.waitBegin, r.waitEnd);
-
-  if (r.lincBegin) push('linc', 'Lincoln Financial disability income', '', r.lincBegin, r.lincEnd);
-  else if (r.lincNote) pushNote('linc', 'Lincoln Financial disability income', r.lincNote);
 
   if (r.pdlBegin) {
     push('pdl', 'Pregnancy Disability Leave (PDL)',
@@ -474,11 +474,38 @@ function renderTimeline(r) {
 
   if (r.cfraBegin) push('cfra', 'California Family Rights Act (CFRA)', '', r.cfraBegin, r.cfraEnd);
 
+  if (r.lincBegin) push('linc', 'Lincoln Financial disability income', '', r.lincBegin, r.lincEnd);
+  else if (r.lincNote) pushNote('linc', 'Lincoln Financial disability income', r.lincNote);
+
   if (r.pfcbStart) {
     const pfcbMeta = r.pfcbWeeks + ' week' + (r.pfcbWeeks === 1 ? '' : 's')
       + (r.pfcbStartInferred ? ' · starts day after PDL ends (default)' : '');
     push('pfcb', 'Pay for Family Care and Bonding (PFCB)', pfcbMeta, r.pfcbStart, r.pfcbEnd);
   }
+
+  if (r.fileClaim) push('linc', 'File Lincoln Financial claim',
+    'May file up to 30 days before leave begins. Health LOA recommends 1–2 weeks before. Requires medical certification; the LOA team processes the leave.',
+    r.fileClaim, null);
+
+  if (r.sickBegin) {
+    let sickMeta = r.sickDays + ' calendar day' + (r.sickDays===1?'':'s') + ' used';
+    if (r.sickCapped) {
+      sickMeta += ' (capped at ' + r.maxSickCap + ' — you have ' + r.sickDaysRaw + ' total)';
+    }
+    push('sick', 'Sick leave', sickMeta, r.sickBegin, r.sickEnd);
+  }
+  if (r.vacBegin) push('vac', 'Vacation leave', r.vacDays + ' day' + (r.vacDays===1?'':'s') + ' used', r.vacBegin, r.vacEnd);
+  else if (r.vacNote) pushNote('vac', 'Vacation leave', r.vacNote);
+
+  if (r.waitBegin && r.sickDays < r.waitingWorkdays && r.fallbackStrategy === 'lns') {
+    const gapDays = r.waitingWorkdays - r.sickDays;
+    pushNote('wait', 'Leave without pay (waiting-period gap)',
+      'Sick covers ' + r.sickDays + ' of ' + r.waitingWorkdays + ' waiting-period working days. ' +
+      gapDays + ' working day' + (gapDays===1?'':'s') + ' will be unpaid.');
+  }
+
+  push('milestone', 'Estimated due date', '', r.dueDate, null);
+  if (r.actualBirth) push('milestone', 'Actual birth date', '', r.actualBirth, null);
 
   if (r.cclBegin) {
     const anchorLabel = { pdl: 'PDL', fml: 'FMLA', cfra: 'CFRA' }[r.cclAnchorUsed];
@@ -774,20 +801,19 @@ function collect() {
     const el = document.querySelector('input[name="' + name + '"]:checked');
     return el ? el.value : null;
   };
-  /* Eligibility checkboxes:
-     PDL is its own track. FMLA and CFRA are separate federal/state programs;
-     "FMLA/CFRA" is a convenience option for the common UC case where the
-     employee qualifies for both and the two run concurrently. The downstream
-     calc treats fmlEligible / cfraEligible as the gates for displaying each
-     leave block — checking the combined option turns both on. */
+  /* Eligibility:
+     PDL is automatic for California pregnancy, so it is always shown. The
+     single "FMLA/CFRA" checkbox is the common UC case where the employee
+     qualifies for both federal FMLA and state CFRA, which run concurrently —
+     checking it turns on both the FMLA and CFRA leave blocks. */
   const cb = id => {
     const el = document.getElementById(id);
     return el ? el.checked : false;
   };
-  const eligPDL = cb('eligPDL');
-  const eligFML = cb('eligFML');
-  const eligCFRA = cb('eligCFRA');
   const eligFMLCFRA = cb('eligFMLCFRA');
+  /* Lincoln Financial disability: when "no", the disability waiting period and
+     Lincoln income are omitted from the calculation entirely. */
+  const appliesLincoln = (radioValue('lincolnDisability') || 'yes') === 'yes';
 
   return {
     lastDay: parseISO(v('lastDay')),
@@ -798,9 +824,10 @@ function collect() {
     sickHours: n('sickHours'),
     vacHours: n('vacHours'),
     waitingPeriodDays: parseInt(v('waitingPeriod'),10) || 14,
-    pdlEligible: eligPDL,
-    fmlEligible: eligFML || eligFMLCFRA,
-    cfraEligible: eligCFRA || eligFMLCFRA,
+    appliesLincoln,
+    pdlEligible: true,
+    fmlEligible: eligFMLCFRA,
+    cfraEligible: eligFMLCFRA,
     pfcbWeeks: n('pfcbWeeks'),
     pfcbStart: parseISO(v('pfcbStart')),
     cclWeeks: n('cclWeeks'),
@@ -970,6 +997,10 @@ function run(e) {
 
 function resetAll() {
   document.getElementById('calcForm').reset();
+  /* Reset defaults to "Yes" for Lincoln disability, so restore the
+     waiting-period field's visibility to match. */
+  const wpf = document.getElementById('waitingPeriodField');
+  if (wpf) wpf.hidden = false;
   document.querySelectorAll('[aria-invalid="true"]').forEach(el => el.removeAttribute('aria-invalid'));
   document.querySelectorAll('.err-msg').forEach(el => { el.textContent=''; el.hidden = true; });
   /* Also clear the consolidated error summary. */
@@ -1041,6 +1072,21 @@ function wireScheduleToggle() {
   const update = () => {
     const selected = document.querySelector('input[name="scheduleType"]:checked');
     sub.hidden = !selected || selected.value !== 'variable';
+  };
+  radios.forEach(r => r.addEventListener('change', update));
+  update();
+}
+
+/* Show/hide the disability waiting-period field based on whether the employee
+   is applying for disability leave through Lincoln Financial. "Yes" reveals
+   the waiting-period selector; "No" hides it. */
+function wireLincolnToggle() {
+  const radios = document.querySelectorAll('input[name="lincolnDisability"]');
+  const field = document.getElementById('waitingPeriodField');
+  if (!radios.length || !field) return;
+  const update = () => {
+    const selected = document.querySelector('input[name="lincolnDisability"]:checked');
+    field.hidden = !selected || selected.value !== 'yes';
   };
   radios.forEach(r => r.addEventListener('change', update));
   update();
@@ -1156,6 +1202,7 @@ function wire() {
 
   wireInfoButtons();
   wireScheduleToggle();
+  wireLincolnToggle();
   wireSelectAnnouncements();
 
   /* Sync the toggle button's aria state with whatever the no-flash
