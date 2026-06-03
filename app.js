@@ -848,7 +848,9 @@ const FIELD_LABELS = {
   deliveryType: 'Delivery type',
   sickHours:    'Total sick hours',
   hoursPerDay:  'Hours per day',
-  daysPerWeek:  'Days per week'
+  daysPerWeek:  'Days per week',
+  pfcbWeeks:    'PFCB weeks',
+  cclWeeks:     'CCL weeks'
 };
 
 const VALIDATED_FIELDS = Object.keys(FIELD_LABELS);
@@ -894,6 +896,29 @@ function validate(input) {
       addError('daysPerWeek', 'Enter days per week (1–7).');
     }
   }
+
+  /* PFCB / CCL week counts: blank or 0 skips the block; otherwise it must be
+     a whole number within the allowed range. CCL's upper bound depends on
+     FMLA/CFRA eligibility (14 weeks if eligible, 26 weeks if not). */
+  const validateWeeks = (id, max, message) => {
+    const field = document.getElementById(id);
+    if (!field) return;
+    const raw = field.value.trim();
+    if (raw === '') return; // blank = skip
+    const num = parseFloat(raw);
+    if (isNaN(num) || !Number.isInteger(num) || num < 0 || num > max) {
+      addError(id, message);
+    }
+  };
+  validateWeeks('pfcbWeeks', 8,
+    'PFCB weeks must be 0 or left blank to skip, or a whole number from 1 to 8.');
+  const cclMax = input.fmlEligible ? 14 : 26;
+  const cclReason = input.fmlEligible
+    ? 'Because you are eligible for FMLA/CFRA, CCL is up to 14 weeks.'
+    : 'Because you are not eligible for FMLA/CFRA, CCL is up to 26 weeks.';
+  validateWeeks('cclWeeks', cclMax,
+    'CCL weeks must be 0 or left blank to skip, or a whole number from 1 to ' +
+    cclMax + '. ' + cclReason);
 
   renderErrorSummary(errors);
   return errors.length === 0;

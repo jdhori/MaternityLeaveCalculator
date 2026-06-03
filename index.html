@@ -278,8 +278,9 @@
           <div class="field">
             <label for="pfcbWeeks">PFCB weeks</label>
             <input type="number" id="pfcbWeeks" name="pfcbWeeks" min="0" max="8" step="1"
-                   aria-describedby="pfcbWeeks-hint">
+                   aria-describedby="pfcbWeeks-hint pfcbWeeks-err">
             <span class="hint" id="pfcbWeeks-hint">Pay for Family Care and Bonding. Enter weeks (UC standard is up to 8).</span>
+            <span class="err-msg" id="pfcbWeeks-err" role="alert" hidden></span>
           </div>
           <div class="field">
             <label for="pfcbStart">PFCB begin date</label>
@@ -317,8 +318,9 @@
           <div class="field">
             <label for="cclWeeks">CCL weeks</label>
             <input type="number" id="cclWeeks" name="cclWeeks" min="0" max="26" step="1"
-                   aria-describedby="cclWeeks-hint">
+                   aria-describedby="cclWeeks-hint cclWeeks-err">
             <span class="hint" id="cclWeeks-hint">Leave blank or 0 to skip. See the info button above for the week limits.</span>
+            <span class="err-msg" id="cclWeeks-err" role="alert" hidden></span>
           </div>
           <div class="field">
             <label for="cclAnchor">CCL starts after</label>

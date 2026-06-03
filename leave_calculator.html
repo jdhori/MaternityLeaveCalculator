@@ -1281,8 +1281,9 @@
           <div class="field">
             <label for="pfcbWeeks">PFCB weeks</label>
             <input type="number" id="pfcbWeeks" name="pfcbWeeks" min="0" max="8" step="1"
-                   aria-describedby="pfcbWeeks-hint">
+                   aria-describedby="pfcbWeeks-hint pfcbWeeks-err">
             <span class="hint" id="pfcbWeeks-hint">Pay for Family Care and Bonding. Enter weeks (UC standard is up to 8).</span>
+            <span class="err-msg" id="pfcbWeeks-err" role="alert" hidden></span>
           </div>
           <div class="field">
             <label for="pfcbStart">PFCB begin date</label>
@@ -1320,8 +1321,9 @@
           <div class="field">
             <label for="cclWeeks">CCL weeks</label>
             <input type="number" id="cclWeeks" name="cclWeeks" min="0" max="26" step="1"
-                   aria-describedby="cclWeeks-hint">
+                   aria-describedby="cclWeeks-hint cclWeeks-err">
             <span class="hint" id="cclWeeks-hint">Leave blank or 0 to skip. See the info button above for the week limits.</span>
+            <span class="err-msg" id="cclWeeks-err" role="alert" hidden></span>
           </div>
           <div class="field">
             <label for="cclAnchor">CCL starts after</label>
@@ -2268,7 +2270,9 @@ const FIELD_LABELS = {
   deliveryType: 'Delivery type',
   sickHours:    'Total sick hours',
   hoursPerDay:  'Hours per day',
-  daysPerWeek:  'Days per week'
+  daysPerWeek:  'Days per week',
+  pfcbWeeks:    'PFCB weeks',
+  cclWeeks:     'CCL weeks'
 };
 
 const VALIDATED_FIELDS = Object.keys(FIELD_LABELS);
@@ -2314,6 +2318,29 @@ function validate(input) {
       addError('daysPerWeek', 'Enter days per week (1–7).');
     }
   }
+
+  /* PFCB / CCL week counts: blank or 0 skips the block; otherwise it must be
+     a whole number within the allowed range. CCL's upper bound depends on
+     FMLA/CFRA eligibility (14 weeks if eligible, 26 weeks if not). */
+  const validateWeeks = (id, max, message) => {
+    const field = document.getElementById(id);
+    if (!field) return;
+    const raw = field.value.trim();
+    if (raw === '') return; // blank = skip
+    const num = parseFloat(raw);
+    if (isNaN(num) || !Number.isInteger(num) || num < 0 || num > max) {
+      addError(id, message);
+    }
+  };
+  validateWeeks('pfcbWeeks', 8,
+    'PFCB weeks must be 0 or left blank to skip, or a whole number from 1 to 8.');
+  const cclMax = input.fmlEligible ? 14 : 26;
+  const cclReason = input.fmlEligible
+    ? 'Because you are eligible for FMLA/CFRA, CCL is up to 14 weeks.'
+    : 'Because you are not eligible for FMLA/CFRA, CCL is up to 26 weeks.';
+  validateWeeks('cclWeeks', cclMax,
+    'CCL weeks must be 0 or left blank to skip, or a whole number from 1 to ' +
+    cclMax + '. ' + cclReason);
 
   renderErrorSummary(errors);
   return errors.length === 0;
