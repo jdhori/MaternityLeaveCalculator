@@ -55,6 +55,23 @@
   .sw-holiday  { background: var(--holiday-bg); }
   .sw-bordered { border: 1px solid var(--rule); }
 
+  /* ---------- color-blind glyphs ----------
+     Each leave category carries a distinct shape so it can be told apart
+     without relying on color alone (WCAG 1.4.1 Use of Color). The shape is
+     surfaced in the legend swatch, timeline label, calendar cells, and chips. */
+  .sw-pdl,  .chip.pdl,  .timeline > li.cat-pdl           { --cb-glyph: "\25C6"; --cb-color: var(--c-pdl); } /* diamond */
+  .sw-fml,  .chip.fml,  .timeline > li.cat-fml           { --cb-glyph: "\25A0"; --cb-color: var(--c-fml); } /* square */
+  .sw-cfra, .chip.cfra, .timeline > li.cat-cfra          { --cb-glyph: "\25CF"; --cb-color: var(--c-cfra); } /* circle */
+  .sw-linc, .chip.linc, .timeline > li.cat-linc          { --cb-glyph: "\25B2"; --cb-color: var(--c-linc); } /* triangle up */
+  .sw-wait, .chip.wait, .timeline > li.cat-wait          { --cb-glyph: "\25BC"; --cb-color: var(--c-wait); } /* triangle down */
+  .sw-pfcb, .chip.pfcb, .timeline > li.cat-pfcb          { --cb-glyph: "\2665"; --cb-color: var(--c-pfcb); } /* heart */
+  .sw-ccl,  .chip.ccl,  .timeline > li.cat-ccl           { --cb-glyph: "\271A"; --cb-color: var(--c-ccl); } /* plus */
+  .chip.milestone, .timeline > li.cat-milestone          { --cb-glyph: "\2726"; --cb-color: var(--c-milestone); } /* sparkle */
+  .sw-sick, .timeline > li.cat-sick, .cal td.day.c-sick  { --cb-glyph: "\2716"; --cb-color: var(--c-sick); } /* heavy x */
+  .sw-vac,  .timeline > li.cat-vac,  .cal td.day.c-vac   { --cb-glyph: "\2600"; --cb-color: var(--c-vac); } /* sun */
+  .sw-lns,  .cal td.day.c-lns                            { --cb-glyph: "\2205"; } /* empty set */
+  .sw-holiday                                            { --cb-glyph: "\2605"; } /* star */
+
 /* ---------- design tokens ---------- */
   :root {
     color-scheme: light;
@@ -361,6 +378,13 @@
   }
   .field-group-title { line-height: 1.2; }
 
+  /* standalone explanatory statement above a field group */
+  .field-note {
+    font-size: .9rem;
+    color: var(--ink-soft);
+    margin: 0 0 .5rem;
+  }
+
   /* generic disclosure button: circled-i icon that toggles an info note */
   .info-btn {
     background: transparent;
@@ -634,6 +658,15 @@
     color: var(--ink);
     line-height: 1.3;
   }
+  /* colored shape icon echoing the left border, so leave events are easy to
+     tell apart even when the colors look similar (WCAG 1.4.1) */
+  .timeline > li .label::before {
+    content: var(--cb-glyph, "");
+    margin-right: .5em;
+    font-size: 1.05em;
+    font-weight: 700;
+    color: var(--cb-color, var(--ink-soft));
+  }
   .timeline .dates {
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size: .9rem;
@@ -681,16 +714,49 @@
   }
   .legend > span { display: inline-flex; align-items: center; gap: .35rem; }
   .legend .sw {
-    width: 12px; height: 12px; border-radius: 3px;
-    display: inline-block;
+    width: 15px; height: 15px; border-radius: 3px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 10px; line-height: 1; font-weight: 700;
+    color: var(--chip-text);
   }
+  .legend .sw::before { content: var(--cb-glyph, ""); }
+  /* dark glyph on the light/bordered swatches (sick, vac, lns, holiday) */
+  .legend .sw-bordered { color: var(--ink); }
 
   /* ---------- calendars ---------- */
+  /* column-view toggle */
+  .cal-cols {
+    display: flex; align-items: center; flex-wrap: wrap; gap: .5rem;
+    margin: 0 0 1rem;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: .85rem;
+  }
+  .cal-cols-label { color: var(--ink-soft); font-weight: 600; }
+  .cal-cols-btn {
+    font: inherit;
+    padding: .35rem .8rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--surface-1);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .cal-cols-btn:hover { border-color: var(--ink-mute); }
+  .cal-cols-btn:focus-visible { outline: 0; box-shadow: 0 0 0 3px var(--focus); }
+  .cal-cols-btn[aria-pressed="true"] {
+    background: var(--accent-dark);
+    border-color: var(--accent-dark);
+    color: #fff;
+  }
+
   .cal-wrap {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1.25rem;
   }
+  /* explicit column counts chosen by the toggle */
+  .cal-wrap.cols-1 { grid-template-columns: 1fr; }
+  .cal-wrap.cols-2 { grid-template-columns: repeat(2, 1fr); }
   .cal {
     background: var(--surface-1);
     border: 1px solid var(--rule);
@@ -762,6 +828,8 @@
     font-weight: 600;
     letter-spacing: .03em;
   }
+  /* shape glyph so day fills (sick/vac/lns) read without color */
+  .cal td.day .cat::before { content: var(--cb-glyph, ""); margin-right: .15em; }
 
   /* weekend + holiday shading */
   .cal td.weekend .d { color: var(--ink-mute); }
@@ -781,8 +849,8 @@
   .chip {
     display: block;
     border-radius: 2px;
-    padding: 1px 3px;
-    font-size: .6rem;
+    padding: 1px 1px;
+    font-size: .56rem;
     font-weight: 700;
     line-height: 1.1;
     margin-top: 1px;
@@ -795,6 +863,8 @@
   .chip.pfcb  { background: var(--c-pfcb); color: var(--chip-text); }
   .chip.ccl   { background: var(--c-ccl); color: var(--chip-text); }
   .chip.milestone { background: var(--c-milestone); color: var(--chip-text); }
+  /* shape glyph prefix so chips are distinguishable without color */
+  .chip::before { content: var(--cb-glyph, ""); margin-right: .2em; }
 
   /* ---------- error summary (top-of-form consolidated errors) ---------- */
   .error-summary {
@@ -901,14 +971,17 @@
       --c-milestone: #0e1726; --c-holiday: #5a6a82;
       --chip-text: #ffffff;
     }
-    body { background: #fff; font-size: 11pt; }
+    /* Tight top margin so the dates fit on the first 1-2 pages and less
+       paper is used. */
+    @page { margin: 0.4in 0.55in 0.5in; }
+    body { background: #fff; font-size: 11pt; margin: 0; }
     /* Print in color: force backgrounds and tints to render so the colored
        leave categories, chips, and calendar fills appear on the printout. */
     *, *::before, *::after {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
-    .form-panel, .btn-row, .skip, .theme-toggle, .info-btn, .error-summary { display: none !important; }
+    .form-panel, .btn-row, .skip, .theme-toggle, .info-btn, .error-summary, .cal-cols { display: none !important; }
     /* In print, force accordions open and hide their summary affordance */
     .accordion { border: 0; background: transparent; }
     .accordion > summary { padding: 0; background: transparent; pointer-events: none; }
@@ -918,7 +991,10 @@
     details.accordion:not([open]) > *:not(summary) { display: block !important; }
     .grid { display: block; }
     .timeline li { page-break-inside: avoid; }
-    header.masthead { border-bottom: 1px solid #666; }
+    /* Tighten vertical rhythm so the dates stay within the first 1-2 pages */
+    header.masthead { border-bottom: 1px solid #666; margin: 0 0 .5rem; padding-top: 0; }
+    .timeline { gap: .45rem; }
+    .timeline > li { padding: .55rem .85rem; }
     a { color: inherit; text-decoration: none; }
     /* Keep all the dates (summary + leave events) on their own page(s) and
        start the monthly calendar on a fresh page, so each can be printed
@@ -1146,8 +1222,33 @@
 
       <fieldset>
         <legend>Additional leave</legend>
+        <p class="field-note"><strong>PDL</strong> (Pregnancy Disability Leave) is automatic for California pregnancy.</p>
+        <div class="field-group-header">
+          <span class="field-group-title">FMLA / CFRA</span>
+          <button type="button" id="fmlaCfraInfoBtn" class="info-btn"
+                  aria-expanded="false"
+                  aria-controls="fmlaCfraInfoNote"
+                  aria-label="About FMLA/CFRA eligibility">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </button>
+        </div>
+        <div id="fmlaCfraInfoNote" class="info-note" role="note"
+             aria-live="polite" aria-atomic="true" hidden>
+          <p>The federal <strong>FMLA</strong> (Family and Medical Leave Act) and
+          California's <strong>CFRA</strong> (California Family Rights Act)
+          each provide up to <strong>12 weeks</strong> of job-protected leave. To
+          qualify you must have at least <strong>12 months of service</strong> and
+          have worked <strong>1,250 hours</strong> in the prior 12 months.</p>
+          <p>Most UC employees who meet the FMLA threshold also meet CFRA. For
+          pregnancy and bonding, FMLA generally runs alongside PDL and CFRA, so
+          confirm your specific timeline with your campus Leave Specialist.</p>
+        </div>
         <div class="field">
-          <span class="hint" id="elig-hint">PDL is automatic for California pregnancy. FMLA and CFRA require 12 months of service plus 1,250 hours — most UC employees who meet the FMLA threshold also meet CFRA.</span>
+          <span class="hint" id="elig-hint">See the info button above for eligibility details.</span>
           <label class="check">
             <input type="checkbox" id="eligFMLCFRA" name="eligFMLCFRA"
                    aria-describedby="elig-hint">
@@ -1287,7 +1388,12 @@
             <span><span class="sw sw-lns sw-bordered"></span>Leave, no salary</span>
             <span><span class="sw sw-holiday sw-bordered"></span>★ Holiday</span>
           </div>
-          <div class="cal-wrap" id="calendars" aria-labelledby="cal-heading"></div>
+          <div class="cal-cols" role="group" aria-label="Calendar column layout">
+            <span class="cal-cols-label" id="calColsLabel">Columns:</span>
+            <button type="button" class="cal-cols-btn" id="calCols1" aria-pressed="false">1 column</button>
+            <button type="button" class="cal-cols-btn" id="calCols2" aria-pressed="true">2 columns</button>
+          </div>
+          <div class="cal-wrap cols-2" id="calendars" aria-labelledby="cal-heading"></div>
         </div>
       </details>
     </div>
@@ -2406,6 +2512,25 @@ function wireLincolnToggle() {
   update();
 }
 
+/* Toggle the monthly calendars between a one-column and two-column layout.
+   The chosen button reflects its state via aria-pressed; the calendar grid
+   carries a cols-1 / cols-2 class that the stylesheet maps to a column count. */
+function wireCalColumns() {
+  const wrap = document.getElementById('calendars');
+  const btn1 = document.getElementById('calCols1');
+  const btn2 = document.getElementById('calCols2');
+  if (!wrap || !btn1 || !btn2) return;
+  const setCols = (n) => {
+    wrap.classList.toggle('cols-1', n === 1);
+    wrap.classList.toggle('cols-2', n === 2);
+    btn1.setAttribute('aria-pressed', String(n === 1));
+    btn2.setAttribute('aria-pressed', String(n === 2));
+    liveSay(n === 1 ? 'Calendars shown in one column.' : 'Calendars shown in two columns.');
+  };
+  btn1.addEventListener('click', () => setCols(1));
+  btn2.addEventListener('click', () => setCols(2));
+}
+
 /* Wire any element with class .info-btn and aria-controls pointing at a
    disclosure region. Click toggles aria-expanded and the target's hidden
    attribute. Escape key on the button collapses the note.
@@ -2517,6 +2642,7 @@ function wire() {
   wireInfoButtons();
   wireScheduleToggle();
   wireLincolnToggle();
+  wireCalColumns();
   wireSelectAnnouncements();
 
   /* Sync the toggle button's aria state with whatever the no-flash

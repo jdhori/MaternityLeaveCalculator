@@ -1092,6 +1092,25 @@ function wireLincolnToggle() {
   update();
 }
 
+/* Toggle the monthly calendars between a one-column and two-column layout.
+   The chosen button reflects its state via aria-pressed; the calendar grid
+   carries a cols-1 / cols-2 class that the stylesheet maps to a column count. */
+function wireCalColumns() {
+  const wrap = document.getElementById('calendars');
+  const btn1 = document.getElementById('calCols1');
+  const btn2 = document.getElementById('calCols2');
+  if (!wrap || !btn1 || !btn2) return;
+  const setCols = (n) => {
+    wrap.classList.toggle('cols-1', n === 1);
+    wrap.classList.toggle('cols-2', n === 2);
+    btn1.setAttribute('aria-pressed', String(n === 1));
+    btn2.setAttribute('aria-pressed', String(n === 2));
+    liveSay(n === 1 ? 'Calendars shown in one column.' : 'Calendars shown in two columns.');
+  };
+  btn1.addEventListener('click', () => setCols(1));
+  btn2.addEventListener('click', () => setCols(2));
+}
+
 /* Wire any element with class .info-btn and aria-controls pointing at a
    disclosure region. Click toggles aria-expanded and the target's hidden
    attribute. Escape key on the button collapses the note.
@@ -1203,6 +1222,7 @@ function wire() {
   wireInfoButtons();
   wireScheduleToggle();
   wireLincolnToggle();
+  wireCalColumns();
   wireSelectAnnouncements();
 
   /* Sync the toggle button's aria state with whatever the no-flash

@@ -219,8 +219,33 @@
 
       <fieldset>
         <legend>Additional leave</legend>
+        <p class="field-note"><strong>PDL</strong> (Pregnancy Disability Leave) is automatic for California pregnancy.</p>
+        <div class="field-group-header">
+          <span class="field-group-title">FMLA / CFRA</span>
+          <button type="button" id="fmlaCfraInfoBtn" class="info-btn"
+                  aria-expanded="false"
+                  aria-controls="fmlaCfraInfoNote"
+                  aria-label="About FMLA/CFRA eligibility">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </button>
+        </div>
+        <div id="fmlaCfraInfoNote" class="info-note" role="note"
+             aria-live="polite" aria-atomic="true" hidden>
+          <p>The federal <strong>FMLA</strong> (Family and Medical Leave Act) and
+          California's <strong>CFRA</strong> (California Family Rights Act)
+          each provide up to <strong>12 weeks</strong> of job-protected leave. To
+          qualify you must have at least <strong>12 months of service</strong> and
+          have worked <strong>1,250 hours</strong> in the prior 12 months.</p>
+          <p>Most UC employees who meet the FMLA threshold also meet CFRA. For
+          pregnancy and bonding, FMLA generally runs alongside PDL and CFRA, so
+          confirm your specific timeline with your campus Leave Specialist.</p>
+        </div>
         <div class="field">
-          <span class="hint" id="elig-hint">PDL is automatic for California pregnancy. FMLA and CFRA require 12 months of service plus 1,250 hours — most UC employees who meet the FMLA threshold also meet CFRA.</span>
+          <span class="hint" id="elig-hint">See the info button above for eligibility details.</span>
           <label class="check">
             <input type="checkbox" id="eligFMLCFRA" name="eligFMLCFRA"
                    aria-describedby="elig-hint">
@@ -360,7 +385,12 @@
             <span><span class="sw sw-lns sw-bordered"></span>Leave, no salary</span>
             <span><span class="sw sw-holiday sw-bordered"></span>★ Holiday</span>
           </div>
-          <div class="cal-wrap" id="calendars" aria-labelledby="cal-heading"></div>
+          <div class="cal-cols" role="group" aria-label="Calendar column layout">
+            <span class="cal-cols-label" id="calColsLabel">Columns:</span>
+            <button type="button" class="cal-cols-btn" id="calCols1" aria-pressed="false">1 column</button>
+            <button type="button" class="cal-cols-btn" id="calCols2" aria-pressed="true">2 columns</button>
+          </div>
+          <div class="cal-wrap cols-2" id="calendars" aria-labelledby="cal-heading"></div>
         </div>
       </details>
     </div>
