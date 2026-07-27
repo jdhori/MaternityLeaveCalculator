@@ -1149,6 +1149,188 @@ function toggleTheme() {
   liveSay(next === 'dark' ? 'Switched to dark mode.' : 'Switched to light mode.');
 }
 
+/* ============================================================
+   Dwell clicking (hover-to-activate)
+   -----------------------------------------------------------
+   Assistive feature for people who steer a pointer (head
+   pointer, eye gaze, joystick) but cannot press a physical
+   button. When enabled, resting the pointer on an actionable
+   control for the configured dwell time activates it: click
+   targets (buttons, links, accordion summaries, radio/checkbox
+   labels and inputs) receive a synthetic click; text-entry
+   controls and selects receive focus instead, so the user can
+   continue with their own input method. Moving the pointer off
+   a control before the time elapses cancels the pending
+   activation (pointer-cancellation semantics, SC 2.5.2), as
+   does a real pointer press. After an activation the control
+   will not re-arm until the pointer leaves it, so resting on a
+   toggle does not flip it repeatedly. Both the on/off state and
+   the dwell time persist in localStorage alongside the theme
+   preference.
+   ============================================================ */
+const DWELL_KEY = 'uc-leave-calc-dwell';
+const DWELL_TIME_KEY = 'uc-leave-calc-dwell-time';
+const DWELL_DEFAULT_SECONDS = 3;
+const DWELL_MIN_SECONDS = 1;
+const DWELL_MAX_SECONDS = 60;
+/* Elements activated with a synthetic click vs. focused. Radio and
+   checkbox inputs are click targets (click() toggles them and fires
+   change); other inputs and selects are focus targets because a
+   synthetic click cannot open a native picker anyway. */
+const DWELL_CLICK_SELECTOR =
+  'button, a[href], summary, label.radio, label.check, ' +
+  'input[type="radio"], input[type="checkbox"]';
+const DWELL_FOCUS_SELECTOR = 'input, select, textarea';
+
+const clampDwellSeconds = n =>
+  Math.min(DWELL_MAX_SECONDS, Math.max(DWELL_MIN_SECONDS, Math.round(n)));
+
+function readStoredDwellOn() {
+  try { return localStorage.getItem(DWELL_KEY) === 'on'; }
+  catch (e) { return false; }
+}
+function writeStoredDwellOn(on) {
+  try { localStorage.setItem(DWELL_KEY, on ? 'on' : 'off'); } catch (e) {}
+}
+function readStoredDwellSeconds() {
+  try {
+    const n = parseInt(localStorage.getItem(DWELL_TIME_KEY), 10);
+    if (Number.isFinite(n)) return clampDwellSeconds(n);
+  } catch (e) {}
+  return DWELL_DEFAULT_SECONDS;
+}
+function writeStoredDwellSeconds(s) {
+  try { localStorage.setItem(DWELL_TIME_KEY, String(s)); } catch (e) {}
+}
+
+function wireDwell() {
+  const toggle = document.getElementById('dwellToggle');
+  const field = document.getElementById('dwellTimeField');
+  const timeInput = document.getElementById('dwellTime');
+  if (!toggle || !field || !timeInput) return;
+  const label = toggle.querySelector('.dwell-toggle-label');
+
+  let enabled = readStoredDwellOn();
+  let seconds = readStoredDwellSeconds();
+  let armedEl = null;   /* element currently counting down */
+  let timer = null;
+  let firedEl = null;   /* element that just activated — blocked until pointerout */
+
+  const disarm = () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (armedEl) {
+      armedEl.classList.remove('dwell-arming');
+      armedEl.style.removeProperty('--dwell-ms');
+      armedEl = null;
+    }
+  };
+
+  const resolveTarget = (node) => {
+    if (!node || node.nodeType !== 1) return null;
+    let el = node.closest(DWELL_CLICK_SELECTOR + ', ' + DWELL_FOCUS_SELECTOR);
+    if (!el) return null;
+    /* Radio/checkbox inputs sit inside their styled label. Normalize to
+       the wrapping label so the pointer drifting between the label's
+       padding and the input's own box resolves to ONE logical target —
+       otherwise the countdown restarts mid-hover and, after a fire, the
+       inner input could arm again and toggle the control back. */
+    if (el.matches('input[type="radio"], input[type="checkbox"]')) {
+      const wrapper = el.closest('label.radio, label.check');
+      if (wrapper) el = wrapper;
+    }
+    /* Never arm a disabled control. Labels have no .disabled of their
+       own, so also check the control they wrap. */
+    if (el.disabled || el.matches(':disabled')) return null;
+    if (el.matches('label')) {
+      const inner = el.querySelector('input');
+      if (inner && inner.disabled) return null;
+    }
+    return el;
+  };
+
+  const activate = (el) => {
+    if (el.matches(DWELL_CLICK_SELECTOR)) el.click();
+    else el.focus();
+  };
+
+  const onPointerOver = (e) => {
+    if (!enabled) return;
+    const target = resolveTarget(e.target);
+    if (target === armedEl || (target && target === firedEl)) return;
+    disarm();
+    firedEl = null;
+    if (!target) return;
+    armedEl = target;
+    target.style.setProperty('--dwell-ms', (seconds * 1000) + 'ms');
+    target.classList.add('dwell-arming');
+    timer = setTimeout(() => {
+      timer = null;
+      const el = armedEl;
+      disarm();
+      firedEl = el;
+      activate(el);
+    }, seconds * 1000);
+  };
+
+  const onPointerOut = (e) => {
+    if (!enabled) return;
+    const related = e.relatedTarget;
+    if (armedEl && armedEl.contains(e.target) &&
+        (!related || !armedEl.contains(related))) {
+      disarm();
+    }
+    if (firedEl && firedEl.contains(e.target) &&
+        (!related || !firedEl.contains(related))) {
+      firedEl = null;
+    }
+  };
+
+  /* A real pointer press means the user can click — cancel any pending
+     dwell so the intended press is the only activation. */
+  const onPointerDown = () => { disarm(); firedEl = null; };
+
+  document.addEventListener('pointerover', onPointerOver, true);
+  document.addEventListener('pointerout', onPointerOut, true);
+  document.addEventListener('pointerdown', onPointerDown, true);
+
+  const applyDwellUI = (announce) => {
+    toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    if (label) label.textContent = enabled ? 'Dwell: on' : 'Dwell: off';
+    field.hidden = !enabled;
+    timeInput.value = String(seconds);
+    /* On disable, clear ALL engine state. Note: when a dwell-fire lands
+       on the Dwell toggle itself, the fire path sets firedEl just before
+       click() runs this handler — clearing it here is correct because the
+       pointer handlers ignore events entirely while disabled, so the
+       re-arm guard has no job left to do. */
+    if (!enabled) { disarm(); firedEl = null; }
+    if (announce) {
+      liveSay(enabled
+        ? 'Dwell clicking on. Rest the pointer on a control for '
+          + seconds + ' second' + (seconds === 1 ? '' : 's')
+          + ' to activate it.'
+        : 'Dwell clicking off.');
+    }
+  };
+
+  toggle.addEventListener('click', function () {
+    enabled = !enabled;
+    writeStoredDwellOn(enabled);
+    applyDwellUI(true);
+  });
+
+  timeInput.addEventListener('change', function () {
+    const raw = parseFloat(timeInput.value);
+    seconds = Number.isFinite(raw) ? clampDwellSeconds(raw) : DWELL_DEFAULT_SECONDS;
+    timeInput.value = String(seconds);
+    writeStoredDwellSeconds(seconds);
+    liveSay('Dwell time set to ' + seconds
+      + ' second' + (seconds === 1 ? '' : 's') + '.');
+  });
+
+  applyDwellUI(false);
+}
+
 /* Show/hide the variable-schedule sub-fields based on which radio is
    selected. Runs on every change of the scheduleType radios. */
 function wireScheduleToggle() {
@@ -1354,6 +1536,7 @@ function wire() {
   if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
   wireInfoButtons();
+  wireDwell();
   wireEmployeeTypeToggle();
   wireScheduleToggle();
   wireLincolnToggle();

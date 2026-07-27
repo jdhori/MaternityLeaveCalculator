@@ -26,17 +26,38 @@
 <header class="masthead">
   <div class="masthead-top">
     <p class="eyebrow">UC Systemwide Prototype · Accessibility Replacement for .xlsm Tool</p>
-    <button type="button" id="themeToggle" class="theme-toggle"
-            aria-label="Switch to dark mode" aria-pressed="false">
-      <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M20 15.5A8 8 0 1 1 8.5 4a7 7 0 0 0 11.5 11.5z"></path>
-      </svg>
-      <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="4"></circle>
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
-      </svg>
-      <span class="theme-toggle-label">Dark mode</span>
-    </button>
+    <div class="masthead-controls">
+      <button type="button" id="themeToggle" class="theme-toggle"
+              aria-label="Switch to dark mode" aria-pressed="false">
+        <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 15.5A8 8 0 1 1 8.5 4a7 7 0 0 0 11.5 11.5z"></path>
+        </svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+        </svg>
+        <span class="theme-toggle-label">Dark mode</span>
+      </button>
+      <button type="button" id="dwellToggle" class="theme-toggle"
+              aria-pressed="false" aria-describedby="dwellToggle-desc">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M12 7v5l3 3"></path>
+        </svg>
+        <span class="dwell-toggle-label">Dwell: off</span>
+      </button>
+      <span id="dwellToggle-desc" class="sr-only">When on, resting the
+        pointer on a button, link, or form control for the dwell time
+        activates it without clicking.</span>
+      <label class="dwell-time-field" id="dwellTimeField" hidden>
+        <span class="dwell-time-label">Seconds (1–60)</span>
+        <input type="number" id="dwellTime" inputmode="numeric"
+               min="1" max="60" step="1" value="3"
+               aria-describedby="dwellTime-desc">
+      </label>
+      <span id="dwellTime-desc" class="sr-only">Dwell time in seconds
+        before a hovered control activates. 1 to 60. Default 3.</span>
+    </div>
   </div>
   <h1>Maternity Leave Timeline Calculator</h1>
   <p class="lede">

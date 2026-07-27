@@ -9,7 +9,7 @@
      CSP deliberately denies everything by default and only allows same-origin
      scripts, styles, images, and fonts. No inline scripts, no inline styles,
      no external resources, no network requests, no embedding via iframe. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-ehHPlYYvG063Q6yS+Qbw1BbNzO/+hc1O5s7m4M3AJJE='; style-src 'sha256-kh/GB8NKhXFfNS5LBWWidpkNmmtey9nShpX7MJaRGII='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-HFzV8MDvyLFy+t+IRvBpXV/XJDHWp9AjBKbUISvIeRI='; style-src 'sha256-uQ5pTntkohvADJUKwoxyJFdkA8q8xQXsR1vgUoZEAc0='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
@@ -284,6 +284,66 @@
   .theme-toggle .icon-moon { display: inline; }
   :root[data-theme="dark"] .theme-toggle .icon-sun  { display: inline; }
   :root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+  /* ------------------------------------------------------------
+     Dwell clicking (hover-to-activate)
+     The masthead hosts a Dwell toggle next to the theme toggle,
+     plus a seconds field shown only while dwell is on. While a
+     control is "arming" (pointer resting on it), it gets a dashed
+     outline immediately plus a progress bar that fills over the
+     configured dwell time — feedback that does not rely on color
+     alone (WCAG 1.4.1) and shows how long remains before the
+     activation fires. The bar is drawn with ::after, which never
+     renders on replaced elements (inputs/selects); those still get
+     the outline, so every target has visible arming feedback. */
+  .masthead-controls {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+  #dwellToggle[aria-pressed="true"] {
+    border-color: var(--focus);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--focus);
+  }
+  .dwell-time-field {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .dwell-time-field input {
+    width: 4.5rem;
+    min-height: 36px;
+    padding: .3rem .45rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--surface-1);
+    color: var(--ink);
+    font: inherit;
+  }
+  .dwell-arming {
+    outline: 3px dashed var(--focus);
+    outline-offset: 2px;
+    position: relative;
+  }
+  .dwell-arming::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 4px;
+    width: 0;
+    background: var(--focus);
+    pointer-events: none;
+    animation: dwell-fill var(--dwell-ms, 3000ms) linear forwards;
+  }
+  @keyframes dwell-fill { to { width: 100%; } }
 
   /* smooth body-level theme transition (but only after initial paint) */
   body.theme-transitions,
@@ -1001,7 +1061,7 @@
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
-    .form-panel, .btn-row, .skip, .theme-toggle, .info-btn, .error-summary, .cal-cols { display: none !important; }
+    .form-panel, .btn-row, .skip, .theme-toggle, .masthead-controls, .info-btn, .error-summary, .cal-cols { display: none !important; }
     /* In print, force accordions open and hide their summary affordance */
     .accordion { border: 0; background: transparent; }
     .accordion > summary { padding: 0; background: transparent; pointer-events: none; }
@@ -1049,17 +1109,38 @@
 <header class="masthead">
   <div class="masthead-top">
     <p class="eyebrow">UC Systemwide Prototype · Accessibility Replacement for .xlsm Tool</p>
-    <button type="button" id="themeToggle" class="theme-toggle"
-            aria-label="Switch to dark mode" aria-pressed="false">
-      <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M20 15.5A8 8 0 1 1 8.5 4a7 7 0 0 0 11.5 11.5z"></path>
-      </svg>
-      <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="4"></circle>
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
-      </svg>
-      <span class="theme-toggle-label">Dark mode</span>
-    </button>
+    <div class="masthead-controls">
+      <button type="button" id="themeToggle" class="theme-toggle"
+              aria-label="Switch to dark mode" aria-pressed="false">
+        <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 15.5A8 8 0 1 1 8.5 4a7 7 0 0 0 11.5 11.5z"></path>
+        </svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+        </svg>
+        <span class="theme-toggle-label">Dark mode</span>
+      </button>
+      <button type="button" id="dwellToggle" class="theme-toggle"
+              aria-pressed="false" aria-describedby="dwellToggle-desc">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M12 7v5l3 3"></path>
+        </svg>
+        <span class="dwell-toggle-label">Dwell: off</span>
+      </button>
+      <span id="dwellToggle-desc" class="sr-only">When on, resting the
+        pointer on a button, link, or form control for the dwell time
+        activates it without clicking.</span>
+      <label class="dwell-time-field" id="dwellTimeField" hidden>
+        <span class="dwell-time-label">Seconds (1–60)</span>
+        <input type="number" id="dwellTime" inputmode="numeric"
+               min="1" max="60" step="1" value="3"
+               aria-describedby="dwellTime-desc">
+      </label>
+      <span id="dwellTime-desc" class="sr-only">Dwell time in seconds
+        before a hovered control activates. 1 to 60. Default 3.</span>
+    </div>
   </div>
   <h1>Maternity Leave Timeline Calculator</h1>
   <p class="lede">
@@ -2622,6 +2703,188 @@ function toggleTheme() {
   liveSay(next === 'dark' ? 'Switched to dark mode.' : 'Switched to light mode.');
 }
 
+/* ============================================================
+   Dwell clicking (hover-to-activate)
+   -----------------------------------------------------------
+   Assistive feature for people who steer a pointer (head
+   pointer, eye gaze, joystick) but cannot press a physical
+   button. When enabled, resting the pointer on an actionable
+   control for the configured dwell time activates it: click
+   targets (buttons, links, accordion summaries, radio/checkbox
+   labels and inputs) receive a synthetic click; text-entry
+   controls and selects receive focus instead, so the user can
+   continue with their own input method. Moving the pointer off
+   a control before the time elapses cancels the pending
+   activation (pointer-cancellation semantics, SC 2.5.2), as
+   does a real pointer press. After an activation the control
+   will not re-arm until the pointer leaves it, so resting on a
+   toggle does not flip it repeatedly. Both the on/off state and
+   the dwell time persist in localStorage alongside the theme
+   preference.
+   ============================================================ */
+const DWELL_KEY = 'uc-leave-calc-dwell';
+const DWELL_TIME_KEY = 'uc-leave-calc-dwell-time';
+const DWELL_DEFAULT_SECONDS = 3;
+const DWELL_MIN_SECONDS = 1;
+const DWELL_MAX_SECONDS = 60;
+/* Elements activated with a synthetic click vs. focused. Radio and
+   checkbox inputs are click targets (click() toggles them and fires
+   change); other inputs and selects are focus targets because a
+   synthetic click cannot open a native picker anyway. */
+const DWELL_CLICK_SELECTOR =
+  'button, a[href], summary, label.radio, label.check, ' +
+  'input[type="radio"], input[type="checkbox"]';
+const DWELL_FOCUS_SELECTOR = 'input, select, textarea';
+
+const clampDwellSeconds = n =>
+  Math.min(DWELL_MAX_SECONDS, Math.max(DWELL_MIN_SECONDS, Math.round(n)));
+
+function readStoredDwellOn() {
+  try { return localStorage.getItem(DWELL_KEY) === 'on'; }
+  catch (e) { return false; }
+}
+function writeStoredDwellOn(on) {
+  try { localStorage.setItem(DWELL_KEY, on ? 'on' : 'off'); } catch (e) {}
+}
+function readStoredDwellSeconds() {
+  try {
+    const n = parseInt(localStorage.getItem(DWELL_TIME_KEY), 10);
+    if (Number.isFinite(n)) return clampDwellSeconds(n);
+  } catch (e) {}
+  return DWELL_DEFAULT_SECONDS;
+}
+function writeStoredDwellSeconds(s) {
+  try { localStorage.setItem(DWELL_TIME_KEY, String(s)); } catch (e) {}
+}
+
+function wireDwell() {
+  const toggle = document.getElementById('dwellToggle');
+  const field = document.getElementById('dwellTimeField');
+  const timeInput = document.getElementById('dwellTime');
+  if (!toggle || !field || !timeInput) return;
+  const label = toggle.querySelector('.dwell-toggle-label');
+
+  let enabled = readStoredDwellOn();
+  let seconds = readStoredDwellSeconds();
+  let armedEl = null;   /* element currently counting down */
+  let timer = null;
+  let firedEl = null;   /* element that just activated — blocked until pointerout */
+
+  const disarm = () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (armedEl) {
+      armedEl.classList.remove('dwell-arming');
+      armedEl.style.removeProperty('--dwell-ms');
+      armedEl = null;
+    }
+  };
+
+  const resolveTarget = (node) => {
+    if (!node || node.nodeType !== 1) return null;
+    let el = node.closest(DWELL_CLICK_SELECTOR + ', ' + DWELL_FOCUS_SELECTOR);
+    if (!el) return null;
+    /* Radio/checkbox inputs sit inside their styled label. Normalize to
+       the wrapping label so the pointer drifting between the label's
+       padding and the input's own box resolves to ONE logical target —
+       otherwise the countdown restarts mid-hover and, after a fire, the
+       inner input could arm again and toggle the control back. */
+    if (el.matches('input[type="radio"], input[type="checkbox"]')) {
+      const wrapper = el.closest('label.radio, label.check');
+      if (wrapper) el = wrapper;
+    }
+    /* Never arm a disabled control. Labels have no .disabled of their
+       own, so also check the control they wrap. */
+    if (el.disabled || el.matches(':disabled')) return null;
+    if (el.matches('label')) {
+      const inner = el.querySelector('input');
+      if (inner && inner.disabled) return null;
+    }
+    return el;
+  };
+
+  const activate = (el) => {
+    if (el.matches(DWELL_CLICK_SELECTOR)) el.click();
+    else el.focus();
+  };
+
+  const onPointerOver = (e) => {
+    if (!enabled) return;
+    const target = resolveTarget(e.target);
+    if (target === armedEl || (target && target === firedEl)) return;
+    disarm();
+    firedEl = null;
+    if (!target) return;
+    armedEl = target;
+    target.style.setProperty('--dwell-ms', (seconds * 1000) + 'ms');
+    target.classList.add('dwell-arming');
+    timer = setTimeout(() => {
+      timer = null;
+      const el = armedEl;
+      disarm();
+      firedEl = el;
+      activate(el);
+    }, seconds * 1000);
+  };
+
+  const onPointerOut = (e) => {
+    if (!enabled) return;
+    const related = e.relatedTarget;
+    if (armedEl && armedEl.contains(e.target) &&
+        (!related || !armedEl.contains(related))) {
+      disarm();
+    }
+    if (firedEl && firedEl.contains(e.target) &&
+        (!related || !firedEl.contains(related))) {
+      firedEl = null;
+    }
+  };
+
+  /* A real pointer press means the user can click — cancel any pending
+     dwell so the intended press is the only activation. */
+  const onPointerDown = () => { disarm(); firedEl = null; };
+
+  document.addEventListener('pointerover', onPointerOver, true);
+  document.addEventListener('pointerout', onPointerOut, true);
+  document.addEventListener('pointerdown', onPointerDown, true);
+
+  const applyDwellUI = (announce) => {
+    toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    if (label) label.textContent = enabled ? 'Dwell: on' : 'Dwell: off';
+    field.hidden = !enabled;
+    timeInput.value = String(seconds);
+    /* On disable, clear ALL engine state. Note: when a dwell-fire lands
+       on the Dwell toggle itself, the fire path sets firedEl just before
+       click() runs this handler — clearing it here is correct because the
+       pointer handlers ignore events entirely while disabled, so the
+       re-arm guard has no job left to do. */
+    if (!enabled) { disarm(); firedEl = null; }
+    if (announce) {
+      liveSay(enabled
+        ? 'Dwell clicking on. Rest the pointer on a control for '
+          + seconds + ' second' + (seconds === 1 ? '' : 's')
+          + ' to activate it.'
+        : 'Dwell clicking off.');
+    }
+  };
+
+  toggle.addEventListener('click', function () {
+    enabled = !enabled;
+    writeStoredDwellOn(enabled);
+    applyDwellUI(true);
+  });
+
+  timeInput.addEventListener('change', function () {
+    const raw = parseFloat(timeInput.value);
+    seconds = Number.isFinite(raw) ? clampDwellSeconds(raw) : DWELL_DEFAULT_SECONDS;
+    timeInput.value = String(seconds);
+    writeStoredDwellSeconds(seconds);
+    liveSay('Dwell time set to ' + seconds
+      + ' second' + (seconds === 1 ? '' : 's') + '.');
+  });
+
+  applyDwellUI(false);
+}
+
 /* Show/hide the variable-schedule sub-fields based on which radio is
    selected. Runs on every change of the scheduleType radios. */
 function wireScheduleToggle() {
@@ -2827,6 +3090,7 @@ function wire() {
   if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
   wireInfoButtons();
+  wireDwell();
   wireEmployeeTypeToggle();
   wireScheduleToggle();
   wireLincolnToggle();

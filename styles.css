@@ -257,6 +257,66 @@
   :root[data-theme="dark"] .theme-toggle .icon-sun  { display: inline; }
   :root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
 
+  /* ------------------------------------------------------------
+     Dwell clicking (hover-to-activate)
+     The masthead hosts a Dwell toggle next to the theme toggle,
+     plus a seconds field shown only while dwell is on. While a
+     control is "arming" (pointer resting on it), it gets a dashed
+     outline immediately plus a progress bar that fills over the
+     configured dwell time — feedback that does not rely on color
+     alone (WCAG 1.4.1) and shows how long remains before the
+     activation fires. The bar is drawn with ::after, which never
+     renders on replaced elements (inputs/selects); those still get
+     the outline, so every target has visible arming feedback. */
+  .masthead-controls {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+  #dwellToggle[aria-pressed="true"] {
+    border-color: var(--focus);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--focus);
+  }
+  .dwell-time-field {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .dwell-time-field input {
+    width: 4.5rem;
+    min-height: 36px;
+    padding: .3rem .45rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: var(--surface-1);
+    color: var(--ink);
+    font: inherit;
+  }
+  .dwell-arming {
+    outline: 3px dashed var(--focus);
+    outline-offset: 2px;
+    position: relative;
+  }
+  .dwell-arming::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 4px;
+    width: 0;
+    background: var(--focus);
+    pointer-events: none;
+    animation: dwell-fill var(--dwell-ms, 3000ms) linear forwards;
+  }
+  @keyframes dwell-fill { to { width: 100%; } }
+
   /* smooth body-level theme transition (but only after initial paint) */
   body.theme-transitions,
   body.theme-transitions * {
@@ -973,7 +1033,7 @@
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
-    .form-panel, .btn-row, .skip, .theme-toggle, .info-btn, .error-summary, .cal-cols { display: none !important; }
+    .form-panel, .btn-row, .skip, .theme-toggle, .masthead-controls, .info-btn, .error-summary, .cal-cols { display: none !important; }
     /* In print, force accordions open and hide their summary affordance */
     .accordion { border: 0; background: transparent; }
     .accordion > summary { padding: 0; background: transparent; pointer-events: none; }
