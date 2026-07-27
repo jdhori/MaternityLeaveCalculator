@@ -46,8 +46,8 @@
     your situation, please consult your Leave Specialist.
   </p>
   <p class="staff-note">
-    This tool only applies to staff and does not apply to faculty, postdocs,
-    or residents.
+    This tool applies to staff and postdocs (select your employee type below).
+    It does not apply to faculty or residents.
   </p>
 </header>
 
@@ -81,13 +81,29 @@
     <form id="calcForm" novalidate>
 
       <fieldset>
+        <legend>Employee type</legend>
+        <fieldset class="radio-group" aria-describedby="employeeType-hint">
+          <legend>Which best describes your appointment?</legend>
+          <label class="radio">
+            <input type="radio" name="employeeType" value="staff" checked>
+            <span>Staff</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="employeeType" value="postdoc">
+            <span>Postdoc</span>
+          </label>
+          <span class="hint" id="employeeType-hint">Postdocs follow different rules: a 7-day disability waiting period, short-term disability (STD) through The Standard, and 8 weeks of Postdoc Paid Family Leave (PPFL) instead of PFCB. Child Caring Leave does not apply.</span>
+        </fieldset>
+      </fieldset>
+
+      <fieldset>
         <legend>Key dates</legend>
 
         <div class="field">
           <label for="lastDay">Leave start date <span class="req" aria-hidden="true">*</span></label>
           <input type="date" id="lastDay" name="lastDay" required
                  aria-required="true" aria-describedby="lastDay-hint lastDay-err">
-          <span class="hint" id="lastDay-hint">The first day of your leave. Variable employees: pick the actual first day off, not necessarily the day after your last shift.</span>
+          <span class="hint" id="lastDay-hint">The first day of your leave. Variable employees: pick the actual first day off, not necessarily the day after your last shift. <span class="postdoc-only">Postdocs typically begin leave 2 weeks before the estimated due date.</span></span>
           <span class="err-msg" id="lastDay-err" role="alert" hidden></span>
         </div>
 
@@ -128,16 +144,16 @@
         </div>
 
         <fieldset class="radio-group" aria-describedby="lincDisability-hint">
-          <legend>Will you be applying for disability leave through Lincoln Financial Group?</legend>
+          <legend><span class="staff-only">Will you be applying for disability leave through Lincoln Financial Group?</span><span class="postdoc-only">Will you be applying for short-term disability (STD) through The Standard?</span></legend>
           <label class="radio">
             <input type="radio" name="lincolnDisability" value="yes" checked>
-            <span>Yes, I will be applying for disability leave through Lincoln Financial Group</span>
+            <span><span class="staff-only">Yes, I will be applying for disability leave through Lincoln Financial Group</span><span class="postdoc-only">Yes, I will be applying for short-term disability through The Standard</span></span>
           </label>
           <label class="radio">
             <input type="radio" name="lincolnDisability" value="no">
-            <span>No, I will not be applying for disability leave through Lincoln Financial Group</span>
+            <span><span class="staff-only">No, I will not be applying for disability leave through Lincoln Financial Group</span><span class="postdoc-only">No, I will not be applying for short-term disability through The Standard</span></span>
           </label>
-          <span class="hint" id="lincDisability-hint">If yes, a disability waiting period applies. If no, the waiting period and Lincoln Financial income are omitted.</span>
+          <span class="hint" id="lincDisability-hint"><span class="staff-only">If yes, a disability waiting period applies. If no, the waiting period and Lincoln Financial income are omitted.</span><span class="postdoc-only">If yes, a 7-day waiting period applies. If no, the waiting period and STD income are omitted — and sick leave can be used during disability leave since you are not using disability benefits.</span></span>
         </fieldset>
       </fieldset>
 
@@ -185,7 +201,7 @@
           <label for="sickHours">Total sick hours <span class="req" aria-hidden="true">*</span></label>
           <input type="number" id="sickHours" name="sickHours" min="0" step="1" required
                  aria-required="true" aria-describedby="sickHours-hint sickHours-err">
-          <span class="hint" id="sickHours-hint">Enter total accrued sick hours. The tool converts to working days based on your schedule.</span>
+          <span class="hint" id="sickHours-hint">Enter total accrued sick hours. The tool converts to working days based on your schedule. <span class="postdoc-only">Postdocs: sick leave can be used during disability leave only while you are not receiving disability (STD) benefits — the tool applies sick leave before STD income begins.</span></span>
           <span class="err-msg" id="sickHours-err" role="alert" hidden></span>
         </div>
 
@@ -210,10 +226,10 @@
 
         <div class="field" id="waitingPeriodField">
           <label for="waitingPeriod">Disability waiting period (days)</label>
-          <select id="waitingPeriod" name="waitingPeriod" aria-live="polite">
+          <select id="waitingPeriod" name="waitingPeriod">
             <option value="14" selected>14 days (standard)</option>
           </select>
-          <span class="hint">Lincoln Financial plan waiting period.</span>
+          <span class="hint"><span class="staff-only">Lincoln Financial plan waiting period.</span><span class="postdoc-only">The Standard STD plan waiting period for postdocs.</span></span>
         </div>
       </fieldset>
 
@@ -243,6 +259,12 @@
           <p>Most UC employees who meet the FMLA threshold also meet CFRA. For
           pregnancy and bonding, FMLA generally runs alongside PDL and CFRA, so
           confirm your specific timeline with your campus Leave Specialist.</p>
+          <p class="postdoc-only"><strong>Postdocs:</strong> you do <strong>not</strong>
+          need to be FMLA/CFRA eligible to receive PPFL. If you are not
+          FMLA/CFRA eligible, the leave is a personal leave paid through PPFL —
+          no departmental approval is needed. If you are FMLA/CFRA eligible,
+          sick leave may not be used for pay during family leave — only PPFL or
+          vacation.</p>
         </div>
         <div class="field">
           <span class="hint" id="elig-hint">See the info button above for eligibility details.</span>
@@ -254,11 +276,11 @@
         </div>
         <div class="spacer-s"></div>
         <div class="field-group-header">
-          <span class="field-group-title">Pay for Family Care and Bonding (PFCB)</span>
+          <span class="field-group-title"><span class="staff-only">Pay for Family Care and Bonding (PFCB)</span><span class="postdoc-only">Postdoc Paid Family Leave (PPFL)</span></span>
           <button type="button" id="pfcbInfoBtn" class="info-btn"
                   aria-expanded="false"
                   aria-controls="pfcbInfoNote"
-                  aria-label="About PFCB eligibility">
+                  aria-label="About PFCB / PPFL eligibility">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="16" x2="12" y2="12"></line>
@@ -268,28 +290,36 @@
         </div>
         <div id="pfcbInfoNote" class="info-note" role="note"
              aria-live="polite" aria-atomic="true" hidden>
-          <p>You can use PFCB only when you're on approved Family and Medical
+          <p class="staff-only">You can use PFCB only when you're on approved Family and Medical
           Leave for taking care of a seriously ill family member, bonding with a
           new child, or certain military-related reasons — and only if you take
           that leave in full-week blocks. You cannot use PFCB for your own
           medical condition or pregnancy disability.</p>
+          <p class="postdoc-only">Postdocs are eligible for <strong>8 weeks of
+          PPFL</strong> and do <strong>not</strong> need to be FMLA/CFRA
+          eligible. If you are not FMLA/CFRA eligible, the leave is a personal
+          leave paid through PPFL — no departmental approval is needed. PPFL is
+          <strong>per birth</strong> and cannot be used again in the new year.
+          If you are FMLA/CFRA eligible, sick leave may not be used for pay
+          during family leave — only PPFL or vacation.</p>
         </div>
         <div class="row">
           <div class="field">
-            <label for="pfcbWeeks">PFCB weeks</label>
+            <label for="pfcbWeeks"><span class="staff-only">PFCB weeks</span><span class="postdoc-only">PPFL weeks</span></label>
             <input type="number" id="pfcbWeeks" name="pfcbWeeks" min="0" max="8" step="1"
                    aria-describedby="pfcbWeeks-hint pfcbWeeks-err">
-            <span class="hint" id="pfcbWeeks-hint">Pay for Family Care and Bonding. Enter weeks (UC standard is up to 8).</span>
+            <span class="hint" id="pfcbWeeks-hint"><span class="staff-only">Pay for Family Care and Bonding. Enter weeks (UC standard is up to 8).</span><span class="postdoc-only">Postdoc Paid Family Leave. Enter weeks (up to 8 per birth).</span></span>
             <span class="err-msg" id="pfcbWeeks-err" role="alert" hidden></span>
           </div>
           <div class="field">
-            <label for="pfcbStart">PFCB begin date</label>
+            <label for="pfcbStart"><span class="staff-only">PFCB begin date</span><span class="postdoc-only">PPFL begin date</span></label>
             <input type="date" id="pfcbStart" name="pfcbStart"
                    aria-describedby="pfcbStart-hint">
             <span class="hint" id="pfcbStart-hint">Optional — defaults to the day after PDL ends.</span>
           </div>
         </div>
 
+        <div id="cclSection" class="staff-only">
         <div class="field-group-header">
           <span class="field-group-title">Child Caring Leave (CCL)</span>
           <button type="button" id="cclInfoBtn" class="info-btn"
@@ -333,6 +363,7 @@
             <span class="hint" id="cclAnchor-hint">Varies by campus — check with your local HR.</span>
           </div>
         </div>
+        </div><!-- /#cclSection -->
       </fieldset>
 
       <div class="btn-row">
@@ -378,10 +409,10 @@
             <span><span class="sw sw-pdl"></span>PDL</span>
             <span><span class="sw sw-fml"></span>FML</span>
             <span><span class="sw sw-cfra"></span>CFRA</span>
-            <span><span class="sw sw-linc"></span>Lincoln Financial</span>
+            <span><span class="sw sw-linc"></span><span class="staff-only">Lincoln Financial</span><span class="postdoc-only">The Standard (STD)</span></span>
             <span><span class="sw sw-wait"></span>Waiting period</span>
-            <span><span class="sw sw-pfcb"></span>PFCB</span>
-            <span><span class="sw sw-ccl"></span>CCL</span>
+            <span><span class="sw sw-pfcb"></span><span class="staff-only">PFCB</span><span class="postdoc-only">PPFL</span></span>
+            <span class="staff-only"><span class="sw sw-ccl"></span>CCL</span>
             <span><span class="sw sw-sick sw-bordered"></span>Sick day</span>
             <span><span class="sw sw-vac sw-bordered"></span>Vacation day</span>
             <span><span class="sw sw-lns sw-bordered"></span>Leave, no salary</span>

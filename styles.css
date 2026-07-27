@@ -95,7 +95,10 @@
 
     --ink:           #e8e3d5;
     --ink-soft:      #b6ae9d;
-    --ink-mute:      #837c6d;
+    /* WCAG 1.4.3: must stay ≥4.5:1 against every dark surface it sits on
+       (worst case --surface-2 #2a2b33). #a29a89 measures ≥5.3:1 everywhere
+       while staying visually muted below --ink-soft. */
+    --ink-mute:      #a29a89;
     --paper:         #141519;
     --paper-2:       #1c1d22;
     --rule:          #383842;
@@ -196,6 +199,20 @@
     color: var(--accent-dark); margin: 0;
   }
   .masthead .lede { color: var(--ink-soft); max-width: 68ch; margin-left: auto; margin-right: auto; }
+  /* ------------------------------------------------------------
+     Employee-type mode switching (Staff vs Postdoc)
+     The body carries .mode-postdoc when the Postdoc radio is
+     selected. Elements marked .postdoc-only appear only in that
+     mode; .staff-only elements disappear. display:none removes
+     the hidden variant from the accessibility tree, so screen
+     readers only ever encounter the active wording. Hiding is
+     gated on the body class in both directions (instead of a
+     bare .postdoc-only rule plus an un-hide override) so the
+     visible variant keeps whatever display value its other
+     styles give it — e.g. inline-flex legend entries. */
+  body:not(.mode-postdoc) .postdoc-only { display: none; }
+  body.mode-postdoc .staff-only { display: none; }
+
   .masthead .staff-note {
     max-width: 68ch;
     margin: .6rem auto 0;

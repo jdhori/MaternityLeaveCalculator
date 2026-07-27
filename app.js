@@ -185,8 +185,16 @@ function calculate(input) {
     pdlEligible, fmlEligible, cfraEligible,
     pfcbWeeks, pfcbStart,
     cclWeeks, cclAnchor,
-    scheduleType, hoursPerDay, daysPerWeek, fallbackStrategy
+    scheduleType, hoursPerDay, daysPerWeek, fallbackStrategy,
+    employeeType
   } = input;
+  /* Postdocs follow different plan rules: a 7-day disability waiting period,
+     short-term disability (STD) through The Standard instead of Lincoln
+     Financial, PPFL instead of PFCB (8 weeks, no FMLA/CFRA eligibility
+     required, per birth), and no Child Caring Leave. The PDL span is
+     unchanged — 42 days natural / 56 days C-section already matches the
+     postdoc 6–8 week guideline. */
+  const isPostdoc = employeeType === 'postdoc';
   /* `lastDay` is the field id, but the field semantically represents the
      Leave Start Date — the first day of leave. We keep the variable name
      for diff stability while the meaning is documented here. All downstream
@@ -197,13 +205,15 @@ function calculate(input) {
      Regular employees (5×8): 8 hr/day, 5 days/week, sick cap 22 workdays.
      Variable employees (e.g. 3×12): user-specified hr/day and days/week,
      sick cap 30 workdays.
-     waitingWorkdays = working days that fall within the 14-day calendar
-     waiting period for this schedule — 10 for regular, ~6 for 3×12. */
+     waitingWorkdays = working days that fall within the calendar waiting
+     period for this schedule — e.g. 10 for regular staff (14-day wait),
+     5 for regular postdocs (7-day wait), ~6 for 3×12 staff. */
   const isVariable = scheduleType === 'variable';
   const effHrsPerDay = isVariable && hoursPerDay > 0 ? hoursPerDay : 8;
   const effDaysPerWeek = isVariable && daysPerWeek > 0 ? daysPerWeek : 5;
   const maxSickCap = isVariable ? 30 : 22;
-  const waitingWorkdays = Math.ceil(14 * effDaysPerWeek / 7);
+  const effWaitingDays = waitingPeriodDays || (isPostdoc ? 7 : 14);
+  const waitingWorkdays = Math.ceil(effWaitingDays * effDaysPerWeek / 7);
 
   const sickDaysRaw = Math.floor((sickHours || 0) / effHrsPerDay);
   const vacDays     = Math.floor((vacHours  || 0) / effHrsPerDay);
@@ -241,17 +251,21 @@ function calculate(input) {
   }
 
   /* --- WAITING PERIOD ---
-     Only applies when the employee is applying for disability leave through
-     Lincoln Financial. Calendar-based 14-day window starting on the leave
-     start date. If sick covers or exceeds the waiting-period workdays, the
-     effective "still-waiting-for-disability-pay" window extends until sick
-     runs out (capped at maxSickCap). When the employee is not applying for
-     Lincoln disability, there is no waiting period. */
+     Only applies when the employee is applying for disability income through
+     their carrier (Lincoln Financial for staff — 14 days; The Standard for
+     postdocs — 7 days). Calendar window starting on the leave start date.
+     If sick covers or exceeds the waiting-period workdays, the effective
+     "still-waiting-for-disability-pay" window extends until sick runs out
+     (capped at maxSickCap) — this is also what lets sick leave be used
+     during disability leave while no disability benefits are being paid.
+     When the employee is not applying for disability, there is no waiting
+     period. `appliesLincoln` keeps its historical name but means "applying
+     for carrier disability" in both modes. */
   let waitBegin = null, waitEnd = null;
   if (appliesLincoln) {
     waitBegin = leaveStart;
     if (sickDays <= waitingWorkdays) {
-      waitEnd = addDays(waitBegin, (waitingPeriodDays || 14) - 1);
+      waitEnd = addDays(waitBegin, effWaitingDays - 1);
     } else {
       waitEnd = sickEnd;
     }
@@ -340,7 +354,9 @@ function calculate(input) {
      fall back to the next available anchor in the list and note the change. */
   let cclBegin = null, cclEnd = null, cclAnchorUsed = null;
   const cclAnchorRequested = cclAnchor;
-  if (cclWeeks > 0) {
+  /* CCL is a staff benefit — postdocs never get a CCL block even if a
+     value survived in the hidden field. */
+  if (cclWeeks > 0 && !isPostdoc) {
     const available = {
       cfra: cfraEnd,
       fml:  fmlNewYearEnd || fmlEnd,
@@ -379,6 +395,7 @@ function calculate(input) {
   }
 
   return {
+    isPostdoc, fmlEligible,
     sickDays, sickDaysRaw, sickCapped, maxSickCap, vacDays, vacNote, lincNote, fmlCapped,
     scheduleType, effHrsPerDay, effDaysPerWeek, waitingWorkdays, fallbackStrategy,
     sickBegin, sickEnd, vacBegin, vacEnd,
@@ -389,7 +406,8 @@ function calculate(input) {
     fmlBegin, fmlEnd, fmlNewYearBegin, fmlNewYearEnd,
     cfraBegin, cfraEnd,
     pfcbStart: pfcbStartResolved, pfcbEnd, pfcbWeeks, pfcbStartInferred,
-    cclBegin, cclEnd, cclWeeks, cclAnchorRequested, cclAnchorUsed,
+    cclBegin, cclEnd, cclWeeks: isPostdoc ? 0 : cclWeeks,
+    cclAnchorRequested, cclAnchorUsed,
     endPIE, firstBday,
     lastDay, dueDate, actualBirth, returnDate
   };
@@ -474,16 +492,31 @@ function renderTimeline(r) {
 
   if (r.cfraBegin) push('cfra', 'California Family Rights Act (CFRA)', '', r.cfraBegin, r.cfraEnd);
 
-  if (r.lincBegin) push('linc', 'Lincoln Financial disability income', '', r.lincBegin, r.lincEnd);
-  else if (r.lincNote) pushNote('linc', 'Lincoln Financial disability income', r.lincNote);
+  /* Carrier naming differs by employee type: staff use Lincoln Financial,
+     postdocs apply for short-term disability (STD) through The Standard. */
+  const carrierIncomeLabel = r.isPostdoc
+    ? 'The Standard short-term disability (STD) income'
+    : 'Lincoln Financial disability income';
+  if (r.lincBegin) push('linc', carrierIncomeLabel, '', r.lincBegin, r.lincEnd);
+  else if (r.lincNote) pushNote('linc', carrierIncomeLabel, r.lincNote);
 
   if (r.pfcbStart) {
-    const pfcbMeta = r.pfcbWeeks + ' week' + (r.pfcbWeeks === 1 ? '' : 's')
+    const bondingLabel = r.isPostdoc
+      ? 'Postdoc Paid Family Leave (PPFL)'
+      : 'Pay for Family Care and Bonding (PFCB)';
+    let pfcbMeta = r.pfcbWeeks + ' week' + (r.pfcbWeeks === 1 ? '' : 's')
       + (r.pfcbStartInferred ? ' · starts day after PDL ends (default)' : '');
-    push('pfcb', 'Pay for Family Care and Bonding (PFCB)', pfcbMeta, r.pfcbStart, r.pfcbEnd);
+    if (r.isPostdoc) {
+      pfcbMeta += ' · per birth — cannot be used again in the new year';
+      pfcbMeta += r.fmlEligible
+        ? ' · sick leave may not be used for pay during family leave (PPFL or vacation only)'
+        : ' · personal leave paid via PPFL — no departmental approval needed';
+    }
+    push('pfcb', bondingLabel, pfcbMeta, r.pfcbStart, r.pfcbEnd);
   }
 
-  if (r.fileClaim) push('linc', 'File Lincoln Financial claim',
+  if (r.fileClaim) push('linc',
+    r.isPostdoc ? 'File STD claim with The Standard' : 'File Lincoln Financial claim',
     'May file up to 30 days before leave begins. Health LOA recommends 1–2 weeks before. Requires medical certification; the LOA team processes the leave.',
     r.fileClaim, null);
 
@@ -552,10 +585,11 @@ function renderSummary(r) {
     addLine('CFRA', fmtShort(r.cfraBegin) + ' → ' + fmtShort(r.cfraEnd) + '.');
   }
   if (r.lincBegin) {
-    addLine('Lincoln Financial income', fmtShort(r.lincBegin) + ' → ' + fmtShort(r.lincEnd) + '.');
+    addLine(r.isPostdoc ? 'The Standard STD income' : 'Lincoln Financial income',
+      fmtShort(r.lincBegin) + ' → ' + fmtShort(r.lincEnd) + '.');
   }
   if (r.pfcbStart) {
-    addLine('PFCB', fmtShort(r.pfcbStart) + ' → ' + fmtShort(r.pfcbEnd)
+    addLine(r.isPostdoc ? 'PPFL' : 'PFCB', fmtShort(r.pfcbStart) + ' → ' + fmtShort(r.pfcbEnd)
       + ' (' + r.pfcbWeeks + ' week' + (r.pfcbWeeks === 1 ? '' : 's') + ').');
   }
   if (r.cclBegin) {
@@ -622,8 +656,9 @@ function buildEventIndex(r) {
   mark(r.waitBegin, 'wait', 'Waiting begins');
   mark(r.waitEnd, 'wait', 'Waiting ends');
 
-  mark(r.lincBegin, 'linc', 'Lincoln begins');
-  mark(r.lincEnd, 'linc', 'Lincoln ends');
+  const carrierChip = r.isPostdoc ? 'STD' : 'Lincoln';
+  mark(r.lincBegin, 'linc', carrierChip + ' begins');
+  mark(r.lincEnd, 'linc', carrierChip + ' ends');
 
   mark(r.pdlBegin, 'pdl', 'PDL begins');
   mark(r.pdlEnd, 'pdl', 'PDL ends');
@@ -636,8 +671,9 @@ function buildEventIndex(r) {
   mark(r.cfraBegin, 'cfra', 'CFRA begins');
   mark(r.cfraEnd, 'cfra', 'CFRA ends');
 
-  mark(r.pfcbStart, 'pfcb', 'PFCB begins');
-  mark(r.pfcbEnd, 'pfcb', 'PFCB ends');
+  const bondingChip = r.isPostdoc ? 'PPFL' : 'PFCB';
+  mark(r.pfcbStart, 'pfcb', bondingChip + ' begins');
+  mark(r.pfcbEnd, 'pfcb', bondingChip + ' ends');
 
   mark(r.cclBegin, 'ccl', 'CCL begins');
   mark(r.cclEnd, 'ccl', 'CCL ends');
@@ -811,11 +847,16 @@ function collect() {
     return el ? el.checked : false;
   };
   const eligFMLCFRA = cb('eligFMLCFRA');
-  /* Lincoln Financial disability: when "no", the disability waiting period and
-     Lincoln income are omitted from the calculation entirely. */
+  /* Carrier disability: when "no", the disability waiting period and carrier
+     income are omitted from the calculation entirely. The radio keeps its
+     historical `lincolnDisability` name; for postdocs it means STD through
+     The Standard. */
   const appliesLincoln = (radioValue('lincolnDisability') || 'yes') === 'yes';
+  const employeeType = radioValue('employeeType') || 'staff';
+  const isPostdoc = employeeType === 'postdoc';
 
   return {
+    employeeType,
     lastDay: parseISO(v('lastDay')),
     dueDate: parseISO(v('dueDate')),
     actualBirth: parseISO(v('actualBirth')),
@@ -823,14 +864,16 @@ function collect() {
     deliveryType: v('deliveryType'),
     sickHours: n('sickHours'),
     vacHours: n('vacHours'),
-    waitingPeriodDays: parseInt(v('waitingPeriod'),10) || 14,
+    waitingPeriodDays: parseInt(v('waitingPeriod'),10) || (isPostdoc ? 7 : 14),
     appliesLincoln,
     pdlEligible: true,
     fmlEligible: eligFMLCFRA,
     cfraEligible: eligFMLCFRA,
     pfcbWeeks: n('pfcbWeeks'),
     pfcbStart: parseISO(v('pfcbStart')),
-    cclWeeks: n('cclWeeks'),
+    /* CCL is a staff benefit; the field is hidden in postdoc mode, so any
+       leftover value is ignored. */
+    cclWeeks: isPostdoc ? 0 : n('cclWeeks'),
     cclAnchor: v('cclAnchor') || 'pdl',
     scheduleType: radioValue('scheduleType') || 'regular',
     hoursPerDay: n('hoursPerDay'),
@@ -851,6 +894,15 @@ const FIELD_LABELS = {
   daysPerWeek:  'Days per week',
   pfcbWeeks:    'PFCB weeks',
   cclWeeks:     'CCL weeks'
+};
+
+/* The pfcbWeeks field is labeled "PPFL weeks" in postdoc mode. Resolving the
+   label at error-render time keeps FIELD_LABELS itself immutable. */
+const fieldLabel = (fieldId) => {
+  if (fieldId === 'pfcbWeeks' && document.body.classList.contains('mode-postdoc')) {
+    return 'PPFL weeks';
+  }
+  return FIELD_LABELS[fieldId] || fieldId;
 };
 
 const VALIDATED_FIELDS = Object.keys(FIELD_LABELS);
@@ -910,15 +962,21 @@ function validate(input) {
       addError(id, message);
     }
   };
+  const isPostdoc = input.employeeType === 'postdoc';
+  const bondingTerm = isPostdoc ? 'PPFL' : 'PFCB';
   validateWeeks('pfcbWeeks', 8,
-    'PFCB weeks must be 0 or left blank to skip, or a whole number from 1 to 8.');
-  const cclMax = input.fmlEligible ? 14 : 26;
-  const cclReason = input.fmlEligible
-    ? 'Because you are eligible for FMLA/CFRA, CCL is up to 14 weeks.'
-    : 'Because you are not eligible for FMLA/CFRA, CCL is up to 26 weeks.';
-  validateWeeks('cclWeeks', cclMax,
-    'CCL weeks must be 0 or left blank to skip, or a whole number from 1 to ' +
-    cclMax + '. ' + cclReason);
+    bondingTerm + ' weeks must be 0 or left blank to skip, or a whole number from 1 to 8.');
+  /* CCL does not apply to postdocs — its fields are hidden, so skip
+     validating a value the user can no longer see or fix. */
+  if (!isPostdoc) {
+    const cclMax = input.fmlEligible ? 14 : 26;
+    const cclReason = input.fmlEligible
+      ? 'Because you are eligible for FMLA/CFRA, CCL is up to 14 weeks.'
+      : 'Because you are not eligible for FMLA/CFRA, CCL is up to 26 weeks.';
+    validateWeeks('cclWeeks', cclMax,
+      'CCL weeks must be 0 or left blank to skip, or a whole number from 1 to ' +
+      cclMax + '. ' + cclReason);
+  }
 
   renderErrorSummary(errors);
   return errors.length === 0;
@@ -943,7 +1001,7 @@ function renderErrorSummary(errors) {
   }
 
   errors.forEach(({ fieldId, message }) => {
-    const label = FIELD_LABELS[fieldId] || fieldId;
+    const label = fieldLabel(fieldId);
     const li = document.createElement('li');
     const a = document.createElement('a');
     a.href = '#' + fieldId;
@@ -1026,6 +1084,9 @@ function resetAll() {
      waiting-period field's visibility to match. */
   const wpf = document.getElementById('waitingPeriodField');
   if (wpf) wpf.hidden = false;
+  /* Employee type resets to Staff — re-sync the mode class, swapped
+     labels, and waiting-period options. */
+  if (refreshEmployeeTypeUI) refreshEmployeeTypeUI();
   document.querySelectorAll('[aria-invalid="true"]').forEach(el => el.removeAttribute('aria-invalid'));
   document.querySelectorAll('.err-msg').forEach(el => { el.textContent=''; el.hidden = true; });
   /* Also clear the consolidated error summary. */
@@ -1100,6 +1161,54 @@ function wireScheduleToggle() {
   };
   radios.forEach(r => r.addEventListener('change', update));
   update();
+}
+
+/* Employee type (Staff vs Postdoc). Selecting Postdoc:
+   - adds .mode-postdoc to <body>, which swaps every .staff-only /
+     .postdoc-only text variant (carrier wording, PFCB→PPFL labels, hints)
+     and hides the CCL section (#cclSection carries .staff-only)
+   - swaps the waiting-period option: 14 days (Lincoln, staff) vs 7 days
+     (The Standard STD, postdoc)
+   The current mode is announced through the polite live region so screen
+   reader users hear what changed. resetAll() calls refreshEmployeeTypeUI
+   to re-sync the UI after the form resets back to Staff. */
+let refreshEmployeeTypeUI = null;
+function wireEmployeeTypeToggle() {
+  const radios = document.querySelectorAll('input[name="employeeType"]');
+  const wpSelect = document.getElementById('waitingPeriod');
+  if (!radios.length) return;
+  const setWaitingOptions = (isPostdoc) => {
+    if (!wpSelect) return;
+    /* Update the existing option in place — clearing then re-appending
+       would leave the select momentarily empty, a transient state some
+       assistive tech can pick up. The mode change itself is announced
+       through the dedicated polite live region, so the select carries no
+       aria-live of its own. */
+    const opt = wpSelect.options[0] || wpSelect.appendChild(document.createElement('option'));
+    opt.value = isPostdoc ? '7' : '14';
+    opt.textContent = isPostdoc ? '7 days (postdoc)' : '14 days (standard)';
+    opt.selected = true;
+    wpSelect.value = opt.value;
+  };
+  const update = (announce) => {
+    const selected = document.querySelector('input[name="employeeType"]:checked');
+    const isPostdoc = !!selected && selected.value === 'postdoc';
+    document.body.classList.toggle('mode-postdoc', isPostdoc);
+    setWaitingOptions(isPostdoc);
+    /* The icon-only info button's accessible name follows the visible
+       group title (PFCB for staff, PPFL for postdocs). */
+    const pfcbBtn = document.getElementById('pfcbInfoBtn');
+    if (pfcbBtn) pfcbBtn.setAttribute('aria-label',
+      isPostdoc ? 'About PPFL eligibility' : 'About PFCB eligibility');
+    if (announce) {
+      liveSay(isPostdoc
+        ? 'Postdoc selected: 7-day waiting period, short-term disability through The Standard, PPFL instead of PFCB, no Child Caring Leave.'
+        : 'Staff selected: 14-day waiting period, Lincoln Financial disability, PFCB and Child Caring Leave available.');
+    }
+  };
+  radios.forEach(r => r.addEventListener('change', function () { update(true); }));
+  refreshEmployeeTypeUI = function () { update(false); };
+  update(false);
 }
 
 /* Show/hide the disability waiting-period field based on whether the employee
@@ -1245,6 +1354,7 @@ function wire() {
   if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
   wireInfoButtons();
+  wireEmployeeTypeToggle();
   wireScheduleToggle();
   wireLincolnToggle();
   wireCalColumns();
