@@ -46,6 +46,16 @@
         </svg>
         <span class="dwell-toggle-label">Dwell: off</span>
       </button>
+      <button type="button" id="dwellInfoBtn" class="info-btn"
+              aria-expanded="false"
+              aria-controls="dwellInfoNote"
+              aria-label="About dwell clicking">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </button>
       <span id="dwellToggle-desc" class="sr-only">When on, resting the
         pointer on a button, link, or form control for the dwell time
         activates it without clicking.</span>
@@ -58,6 +68,22 @@
       <span id="dwellTime-desc" class="sr-only">Dwell time in seconds
         before a hovered control activates. 1 to 60. Default 3.</span>
     </div>
+  </div>
+  <div id="dwellInfoNote" class="info-note dwell-info-note" role="note"
+       aria-live="polite" aria-atomic="true" hidden>
+    <p><strong>What is dwell clicking?</strong> Dwell activates a control by
+    holding the pointer still on it — no physical click needed. It
+    accommodates mobility impairments: use it with a mouse you can move but
+    not click, an eye-gaze or head-tracking pointer, or switch-driven
+    pointer control. Rest the pointer on any button, link, checkbox, or
+    dropdown for the dwell time (adjustable from 1 to 60 seconds; default 3)
+    and it activates. Moving away before the time is up cancels. Dropdowns
+    expand into a list you can dwell through, and while dwell is on, date
+    and number fields grow large step buttons that repeat while you rest
+    on them.</p>
+    <p>The same hover-to-activate approach also works ahead: it maps to
+    gaze- and pointer-based selection on augmented-reality (AR) headsets
+    and to press-and-hold activation on mobile touch screens.</p>
   </div>
   <h1>Maternity Leave Timeline Calculator</h1>
   <p class="lede">

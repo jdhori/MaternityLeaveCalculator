@@ -355,6 +355,15 @@
     background: var(--surface-2);
     border-color: var(--ink-mute);
   }
+  /* Dwell explainer note in the centered masthead: keep the running
+     text readable (left-aligned, measure-capped) and visually tied to
+     the controls row above it. */
+  .masthead .dwell-info-note {
+    text-align: left;
+    max-width: 68ch;
+    margin: .5rem auto .25rem;
+  }
+  .masthead .dwell-info-note p + p { margin-top: .5rem; }
 
   /* smooth body-level theme transition (but only after initial paint) */
   body.theme-transitions,
