@@ -9,7 +9,7 @@
      CSP deliberately denies everything by default and only allows same-origin
      scripts, styles, images, and fonts. No inline scripts, no inline styles,
      no external resources, no network requests, no embedding via iframe. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-kDRGkRqpfwY/quE+dk/w6aVzY65Kk3tWdiY67wFDpKg='; style-src 'sha256-pbpUPnVv+IL1CG1IHVDXYsLBY4qxQM15lswOfPZbJiE='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-vYF2M2yplg8kMFSeLNSdavUTzNMuDG0SSjRZsBgr+tM='; style-src 'sha256-pbpUPnVv+IL1CG1IHVDXYsLBY4qxQM15lswOfPZbJiE='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
@@ -1375,12 +1375,12 @@
       <div class="dwell-time-field" id="dwellTimeField" hidden>
         <label for="dwellTime" class="dwell-time-label">Seconds</label>
         <button type="button" id="dwellTimeMinus" class="dwell-stepper dwell-time-btn"
-                aria-label="Decrease dwell time by 1 second">−</button>
+                aria-label="−: decrease dwell time by 1 second">−</button>
         <input type="number" id="dwellTime" inputmode="numeric"
                min="1" max="60" step="1" value="3"
                aria-describedby="dwellTime-desc">
         <button type="button" id="dwellTimePlus" class="dwell-stepper dwell-time-btn"
-                aria-label="Increase dwell time by 1 second">+</button>
+                aria-label="+: increase dwell time by 1 second">+</button>
       </div>
     </div>
   </div>
@@ -3081,9 +3081,15 @@ function wireDatePickerButtons() {
     btn.addEventListener('click', function () {
       /* showPicker() requires transient user activation; a dwell
          activation is synthetic, so fall back to focusing the field
-         (where typing and the dwell steppers still work). */
-      try { input.showPicker(); }
-      catch (e) { input.focus(); }
+         and say why, rather than leaving an unexplained focus jump
+         after activating a control named "Show date picker for …". */
+      try {
+        input.showPicker();
+      } catch (e) {
+        input.focus();
+        liveSay('The calendar cannot be opened this way. Type the date, '
+          + 'or use the step buttons below the field.');
+      }
     });
     row.appendChild(btn);
   });
@@ -3177,6 +3183,13 @@ const DWELL_MAX_SECONDS = 60;
    3-second dwell feel like 5+ seconds on small targets like the
    steppers. Moving away and staying away still cancels (SC 2.5.2). */
 const DWELL_EXIT_GRACE_MS = 250;
+/* Grace added on top of the repeat interval before an auto-repeating
+   stepper announces, so a burst of steps speaks once at its settled
+   value instead of flooding the live region. */
+const DWELL_ANNOUNCE_DELAY_MS = 400;
+/* Trailing delay for a discrete step (click or key press): long enough
+   to coalesce a quick double-press, short enough to feel immediate. */
+const DWELL_ANNOUNCE_SETTLE_MS = 150;
 /* Elements activated with a synthetic click vs. focused. Radio and
    checkbox inputs are click targets (click() toggles them and fires
    change); text-entry inputs are focus targets. Selects get special
@@ -3226,6 +3239,7 @@ function wireDwell() {
   let firedEl = null;   /* element that just activated — blocked until pointerout */
   let openSelect = null; /* select currently expanded into an inline listbox */
   let exitTimer = null;  /* pending exit-grace disarm (see DWELL_EXIT_GRACE_MS) */
+  let repeating = false; /* true only while an auto-repeat step is firing */
 
   const cancelExit = () => {
     if (exitTimer) { clearTimeout(exitTimer); exitTimer = null; }
@@ -3332,8 +3346,12 @@ function wireDwell() {
     if (el.classList.contains('dwell-stepper')) {
       /* Stepper buttons auto-repeat: parking the pointer steps the value
          once per dwell period instead of blocking until pointer-out, so
-         a date can be walked forward week by week hands-free. */
+         a date can be walked forward week by week hands-free. The flag
+         tells announceValue to hold its announcement until the stepping
+         stops rather than speaking every intermediate value. */
+      repeating = true;
       activate(el);
+      repeating = false;
       armTarget(el);
     } else {
       firedEl = el;
@@ -3421,27 +3439,45 @@ function wireDwell() {
      sick hours by 10") and only exist as tab stops while dwell mode is
      on, since the rows are display:none otherwise. */
   const buildSteppers = () => {
+    /* Steppers auto-repeat while the pointer rests on them, and a
+       screen reader or braille display can take longer to speak a date
+       than the repeat interval — leaving the user trailing seconds
+       behind the real value. During auto-repeat the announcement waits
+       out the repeat interval, so a burst of steps speaks once, at the
+       settled value; a discrete click or key press still announces
+       promptly. The visible value updates on every step either way. */
+    let announceTimer = null;
     const announceValue = (input) => {
       /* The dwell-time input announces through its own change handler. */
       if (input === timeInput) return;
-      let v = input.value;
-      if (input.type === 'date' && v) {
-        const d = parseISO(v);
-        if (d) v = fmtShort(d);
-      }
-      liveSay((fieldLabelText(input) || 'Value')
-        + ' set to ' + (v === '' ? 'empty' : v) + '.');
+      if (announceTimer) clearTimeout(announceTimer);
+      const delay = repeating
+        ? seconds * 1000 + DWELL_ANNOUNCE_DELAY_MS
+        : DWELL_ANNOUNCE_SETTLE_MS;
+      announceTimer = setTimeout(() => {
+        announceTimer = null;
+        let v = input.value;
+        if (input.type === 'date' && v) {
+          const d = parseISO(v);
+          if (d) v = fmtShort(d);
+        }
+        liveSay((fieldLabelText(input) || 'Value')
+          + ' set to ' + (v === '' ? 'empty' : v) + '.');
+      }, delay);
     };
     const fireEvents = (input) => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
     };
     /* labelTemplate carries %s where the field name goes, so the
-       button can be re-labelled if that name changes with mode. */
+       button can be re-labelled if that name changes with mode. The
+       visible glyph is prepended to the accessible name (SC 2.5.3
+       Label in Name): a voice-control user says "click minus 10", so
+       the name must literally contain the "−10" shown on the button. */
     const makeBtn = (group, input, text, labelTemplate, handler) => {
       const b = createEl('button', 'dwell-stepper', text);
       b.type = 'button';
-      setGeneratedLabel(b, input, labelTemplate);
+      setGeneratedLabel(b, input, text + ': ' + labelTemplate);
       b.addEventListener('click', handler);
       group.appendChild(b);
     };
@@ -3461,10 +3497,10 @@ function wireDwell() {
             fireEvents(input);
             announceValue(input);
           };
-          makeBtn(group, input, '−10', 'Decrease %s by 10', stepN(-10));
-          makeBtn(group, input, '−1', 'Decrease %s by 1', stepN(-1));
-          makeBtn(group, input, '+1', 'Increase %s by 1', stepN(1));
-          makeBtn(group, input, '+10', 'Increase %s by 10', stepN(10));
+          makeBtn(group, input, '−10', 'decrease %s by 10', stepN(-10));
+          makeBtn(group, input, '−1', 'decrease %s by 1', stepN(-1));
+          makeBtn(group, input, '+1', 'increase %s by 1', stepN(1));
+          makeBtn(group, input, '+10', 'increase %s by 10', stepN(10));
         } else {
           const stepD = (days) => function () {
             const cur = input.value ? parseISO(input.value) : null;
@@ -3478,6 +3514,7 @@ function wireDwell() {
           makeBtn(group, input, '−1d', '%s 1 day earlier', stepD(-1));
           makeBtn(group, input, '+1d', '%s 1 day later', stepD(1));
           makeBtn(group, input, '+1w', '%s 1 week later', stepD(7));
+          /* Date templates read "−1w: Leave start date 1 week earlier". */
         }
         /* Date inputs are wrapped in a flex row alongside their picker
            button, so the stepper row goes after that wrapper rather
