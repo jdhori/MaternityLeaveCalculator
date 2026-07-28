@@ -9,7 +9,7 @@
      CSP deliberately denies everything by default and only allows same-origin
      scripts, styles, images, and fonts. No inline scripts, no inline styles,
      no external resources, no network requests, no embedding via iframe. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-DGx6pPwJ+KI+Rln947LH96xsAePcghYpEmV94AwZ3JA='; style-src 'sha256-5XgLZjxkbuC9m5UfaOHkmai5HCBChMT30Xq1MVSy/VU='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-Fh5pow7IOiHeP5DpfLIcKzIcbT5mPqRTXrpA/aIaAkY='; style-src 'sha256-S5gaa6IX9Pk1y6EQA4qLnwUGaNsmzLkuLol25839cZY='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
@@ -327,6 +327,7 @@
     color: var(--ink);
     font: inherit;
   }
+  .dwell-time-btn { min-width: 40px; }
   .dwell-arming {
     outline: 3px dashed var(--focus);
     outline-offset: 2px;
@@ -1190,12 +1191,16 @@
       <span id="dwellToggle-desc" class="sr-only">When on, resting the
         pointer on a button, link, or form control for the dwell time
         activates it without clicking.</span>
-      <label class="dwell-time-field" id="dwellTimeField" hidden>
-        <span class="dwell-time-label">Seconds (1–60)</span>
+      <div class="dwell-time-field" id="dwellTimeField" hidden>
+        <label for="dwellTime" class="dwell-time-label">Seconds</label>
+        <button type="button" id="dwellTimeMinus" class="dwell-stepper dwell-time-btn"
+                aria-label="Decrease dwell time by 1 second">−</button>
         <input type="number" id="dwellTime" inputmode="numeric"
                min="1" max="60" step="1" value="3"
                aria-describedby="dwellTime-desc">
-      </label>
+        <button type="button" id="dwellTimePlus" class="dwell-stepper dwell-time-btn"
+                aria-label="Increase dwell time by 1 second">+</button>
+      </div>
       <span id="dwellTime-desc" class="sr-only">Dwell time in seconds
         before a hovered control activates. 1 to 60. Default 3.</span>
     </div>
@@ -3052,6 +3057,8 @@ function wireDwell() {
     };
     document.querySelectorAll('input[type="number"], input[type="date"]')
       .forEach(input => {
+        /* The dwell-time field has its own inline − / + buttons. */
+        if (input === timeInput) return;
         const name = labelTextFor(input) || 'Value';
         const group = createEl('div', 'dwell-steppers');
         group.setAttribute('role', 'group');
@@ -3124,6 +3131,23 @@ function wireDwell() {
     liveSay('Dwell time set to ' + seconds
       + ' second' + (seconds === 1 ? '' : 's') + '.');
   });
+
+  /* Inline − / + buttons beside the seconds field. Keyboard-tabbable
+     (unlike the form steppers) and, carrying .dwell-stepper, they
+     auto-repeat while the pointer rests on them in dwell mode. */
+  const stepSeconds = (delta) => {
+    const raw = parseFloat(timeInput.value);
+    const base = Number.isFinite(raw) ? raw : DWELL_DEFAULT_SECONDS;
+    seconds = clampDwellSeconds(base + delta);
+    timeInput.value = String(seconds);
+    writeStoredDwellSeconds(seconds);
+    liveSay('Dwell time set to ' + seconds
+      + ' second' + (seconds === 1 ? '' : 's') + '.');
+  };
+  const minusBtn = document.getElementById('dwellTimeMinus');
+  const plusBtn = document.getElementById('dwellTimePlus');
+  if (minusBtn) minusBtn.addEventListener('click', function () { stepSeconds(-1); });
+  if (plusBtn) plusBtn.addEventListener('click', function () { stepSeconds(1); });
 
   applyDwellUI(false);
 }

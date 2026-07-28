@@ -299,6 +299,7 @@
     color: var(--ink);
     font: inherit;
   }
+  .dwell-time-btn { min-width: 40px; }
   .dwell-arming {
     outline: 3px dashed var(--focus);
     outline-offset: 2px;

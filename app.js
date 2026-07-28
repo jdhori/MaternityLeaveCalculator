@@ -1428,6 +1428,8 @@ function wireDwell() {
     };
     document.querySelectorAll('input[type="number"], input[type="date"]')
       .forEach(input => {
+        /* The dwell-time field has its own inline − / + buttons. */
+        if (input === timeInput) return;
         const name = labelTextFor(input) || 'Value';
         const group = createEl('div', 'dwell-steppers');
         group.setAttribute('role', 'group');
@@ -1500,6 +1502,23 @@ function wireDwell() {
     liveSay('Dwell time set to ' + seconds
       + ' second' + (seconds === 1 ? '' : 's') + '.');
   });
+
+  /* Inline − / + buttons beside the seconds field. Keyboard-tabbable
+     (unlike the form steppers) and, carrying .dwell-stepper, they
+     auto-repeat while the pointer rests on them in dwell mode. */
+  const stepSeconds = (delta) => {
+    const raw = parseFloat(timeInput.value);
+    const base = Number.isFinite(raw) ? raw : DWELL_DEFAULT_SECONDS;
+    seconds = clampDwellSeconds(base + delta);
+    timeInput.value = String(seconds);
+    writeStoredDwellSeconds(seconds);
+    liveSay('Dwell time set to ' + seconds
+      + ' second' + (seconds === 1 ? '' : 's') + '.');
+  };
+  const minusBtn = document.getElementById('dwellTimeMinus');
+  const plusBtn = document.getElementById('dwellTimePlus');
+  if (minusBtn) minusBtn.addEventListener('click', function () { stepSeconds(-1); });
+  if (plusBtn) plusBtn.addEventListener('click', function () { stepSeconds(1); });
 
   applyDwellUI(false);
 }
