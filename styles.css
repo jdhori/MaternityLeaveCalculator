@@ -138,6 +138,13 @@
 
   /* ---------- reset / base ---------- */
   *, *::before, *::after { box-sizing: border-box; }
+  /* The hidden attribute must always win. Component rules that set an
+     explicit display (.field is block, .dwell-time-field is flex, and
+     so on) otherwise beat the user agent's [hidden] { display: none },
+     leaving "hidden" elements on screen and in the accessibility tree
+     — which silently broke the disability waiting-period field and the
+     dwell seconds control. */
+  [hidden] { display: none !important; }
   html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
@@ -575,6 +582,48 @@
   .field select:focus {
     border-color: var(--focus);
     background: var(--surface-1);
+  }
+
+  /* Date field + its uniquely labeled picker button. The native
+     calendar button is hidden only once ours is in place (JS adds
+     .has-show-picker), so a browser that cannot do the swap keeps
+     working normally. */
+  .date-input-row {
+    display: flex;
+    align-items: stretch;
+    gap: .35rem;
+  }
+  .date-input-row input[type="date"] { flex: 1 1 auto; min-width: 0; }
+  body.has-show-picker .field input[type="date"]::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+  .date-picker-btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    min-height: 40px;
+    padding: 0;
+    background: var(--surface-1);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .date-picker-btn:hover {
+    background: var(--surface-2);
+    border-color: var(--ink-mute);
+    color: var(--ink);
+  }
+  .date-picker-btn svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .field input[aria-invalid="true"],
   .field select[aria-invalid="true"] {

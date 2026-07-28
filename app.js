@@ -1153,6 +1153,121 @@ function toggleTheme() {
   liveSay(next === 'dark' ? 'Switched to dark mode.' : 'Switched to light mode.');
 }
 
+/* Visible label text for a form control, used to build unique
+   accessible names for the controls we generate beside it (date
+   picker buttons, dwell steppers). Reads an explicit label[for=…]
+   first, then a wrapping label, and strips the required marker.
+   Mode-aware: a label carrying both wordings (e.g. "PFCB begin date"
+   / "PPFL begin date") contributes only the variant in force, so the
+   generated name matches what is on screen rather than running the
+   two together. Deliberately not innerText — that would return an
+   empty string for a field inside a collapsed section. */
+function fieldLabelText(input) {
+  const lab = (input.id && document.querySelector('label[for="' + input.id + '"]'))
+    || input.closest('label');
+  if (!lab) return '';
+  const hiddenVariant = document.body.classList.contains('mode-postdoc')
+    ? 'staff-only' : 'postdoc-only';
+  let text = '';
+  const walk = (node) => {
+    Array.prototype.forEach.call(node.childNodes, n => {
+      if (n.nodeType === 3) { text += n.nodeValue; return; }
+      if (n.nodeType !== 1 || n.classList.contains(hiddenVariant)) return;
+      walk(n);
+    });
+  };
+  walk(lab);
+  return text.replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+}
+
+/* Generated controls (date picker buttons, dwell steppers and their
+   groups) name themselves after a field whose own label can change
+   with employee type, so each one remembers the input and a name
+   template and is re-labelled whenever the mode changes. */
+function setGeneratedLabel(el, input, template) {
+  el.labelSourceInput = input;
+  el.labelTemplate = template;
+  el.setAttribute('aria-label',
+    template.replace('%s', fieldLabelText(input) || 'field'));
+}
+
+function refreshGeneratedLabels() {
+  document.querySelectorAll('.date-picker-btn, .dwell-stepper, .dwell-steppers')
+    .forEach(el => {
+      if (!el.labelSourceInput || !el.labelTemplate) return;
+      el.setAttribute('aria-label',
+        el.labelTemplate.replace('%s', fieldLabelText(el.labelSourceInput) || 'field'));
+    });
+}
+
+/* ============================================================
+   Date picker buttons
+   -----------------------------------------------------------
+   Every native date input ships a browser-drawn calendar button
+   whose accessible name is a fixed "Show date picker" — so a form
+   with five date fields exposes five identically named buttons,
+   and a screen reader or voice-control user cannot tell which is
+   which. The shadow-DOM button cannot be relabeled, so where the
+   browser lets us hide it (the -webkit- pseudo-element, honored by
+   Blink and WebKit) we replace it with our own button named after
+   the field: "Show date picker for Estimated due date".
+   Progressive enhancement: if the picker cannot be hidden, or
+   showPicker() is unsupported, nothing changes and the native
+   control stays in place.
+   ============================================================ */
+function makeCalendarIcon() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const shape = (tag, attrs) => {
+    const el = document.createElementNS(NS, tag);
+    Object.keys(attrs).forEach(k => el.setAttribute(k, attrs[k]));
+    svg.appendChild(el);
+  };
+  shape('rect', { x: 3, y: 5, width: 18, height: 16, rx: 2 });
+  shape('line', { x1: 3, y1: 10, x2: 21, y2: 10 });
+  shape('line', { x1: 8, y1: 3, x2: 8, y2: 7 });
+  shape('line', { x1: 16, y1: 3, x2: 16, y2: 7 });
+  return svg;
+}
+
+function wireDatePickerButtons() {
+  const canHideNative = (() => {
+    try {
+      return window.CSS && CSS.supports &&
+        CSS.supports('selector(input::-webkit-calendar-picker-indicator)');
+    } catch (e) { return false; }
+  })();
+  const canShowPicker = typeof HTMLInputElement.prototype.showPicker === 'function';
+  if (!canHideNative || !canShowPicker) return;
+
+  /* Gates the CSS that hides the native indicator, so the native
+     button only disappears once ours is actually in place. */
+  document.body.classList.add('has-show-picker');
+
+  document.querySelectorAll('input[type="date"]').forEach(input => {
+    const row = createEl('div', 'date-input-row');
+    input.insertAdjacentElement('beforebegin', row);
+    row.appendChild(input);
+
+    const btn = createEl('button', 'date-picker-btn');
+    btn.type = 'button';
+    /* Icon-only button: no visible text, so the aria-label is the
+       whole accessible name (no Label in Name conflict). */
+    setGeneratedLabel(btn, input, 'Show date picker for %s');
+    btn.appendChild(makeCalendarIcon());
+    btn.addEventListener('click', function () {
+      /* showPicker() requires transient user activation; a dwell
+         activation is synthetic, so fall back to focusing the field
+         (where typing and the dwell steppers still work). */
+      try { input.showPicker(); }
+      catch (e) { input.focus(); }
+    });
+    row.appendChild(btn);
+  });
+}
+
 /* ============================================================
    Collapsible form sections
    -----------------------------------------------------------
@@ -1479,23 +1594,13 @@ function wireDwell() {
      be dwelled anyway). While dwell is on, every date and number input
      grows a row of stepper buttons instead: ±1 day / ±1 week for dates,
      ±1 / ±10 for numbers. The buttons are ordinary dwell click targets
-     with auto-repeat (see fireDwell), also usable by mouse; they are
-     removed from the tab order because keyboard users already have
-     arrow-key stepping on the native inputs. */
+     with auto-repeat (see fireDwell), and are equally usable by mouse
+     and by keyboard: they sit in the normal tab order (their
+     aria-labels name the field and the amount, e.g. "Increase Total
+     sick hours by 10") and only exist as tab stops while dwell mode is
+     on, since the rows are display:none otherwise. */
   const buildSteppers = () => {
-    const labelTextFor = (input) => {
-      let t = '';
-      if (input.id) {
-        const lab = document.querySelector('label[for="' + input.id + '"]');
-        if (lab) t = lab.textContent;
-      }
-      if (!t) {
-        const wrap = input.closest('label');
-        if (wrap) t = wrap.textContent;
-      }
-      return t.replace(/\*/g, '').replace(/\s+/g, ' ').trim();
-    };
-    const announceValue = (input, name) => {
+    const announceValue = (input) => {
       /* The dwell-time input announces through its own change handler. */
       if (input === timeInput) return;
       let v = input.value;
@@ -1503,17 +1608,19 @@ function wireDwell() {
         const d = parseISO(v);
         if (d) v = fmtShort(d);
       }
-      liveSay(name + ' set to ' + (v === '' ? 'empty' : v) + '.');
+      liveSay((fieldLabelText(input) || 'Value')
+        + ' set to ' + (v === '' ? 'empty' : v) + '.');
     };
     const fireEvents = (input) => {
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
     };
-    const makeBtn = (group, text, ariaLabel, handler) => {
+    /* labelTemplate carries %s where the field name goes, so the
+       button can be re-labelled if that name changes with mode. */
+    const makeBtn = (group, input, text, labelTemplate, handler) => {
       const b = createEl('button', 'dwell-stepper', text);
       b.type = 'button';
-      b.tabIndex = -1;
-      b.setAttribute('aria-label', ariaLabel);
+      setGeneratedLabel(b, input, labelTemplate);
       b.addEventListener('click', handler);
       group.appendChild(b);
     };
@@ -1521,10 +1628,9 @@ function wireDwell() {
       .forEach(input => {
         /* The dwell-time field has its own inline − / + buttons. */
         if (input === timeInput) return;
-        const name = labelTextFor(input) || 'Value';
         const group = createEl('div', 'dwell-steppers');
         group.setAttribute('role', 'group');
-        group.setAttribute('aria-label', name + ' dwell steppers');
+        setGeneratedLabel(group, input, '%s dwell steppers');
         if (input.type === 'number') {
           const stepN = (n) => function () {
             /* stepUp/stepDown respect the input's min/max/step and
@@ -1532,12 +1638,12 @@ function wireDwell() {
             try { if (n > 0) input.stepUp(n); else input.stepDown(-n); }
             catch (e) {}
             fireEvents(input);
-            announceValue(input, name);
+            announceValue(input);
           };
-          makeBtn(group, '−10', 'Decrease ' + name + ' by 10', stepN(-10));
-          makeBtn(group, '−1', 'Decrease ' + name + ' by 1', stepN(-1));
-          makeBtn(group, '+1', 'Increase ' + name + ' by 1', stepN(1));
-          makeBtn(group, '+10', 'Increase ' + name + ' by 10', stepN(10));
+          makeBtn(group, input, '−10', 'Decrease %s by 10', stepN(-10));
+          makeBtn(group, input, '−1', 'Decrease %s by 1', stepN(-1));
+          makeBtn(group, input, '+1', 'Increase %s by 1', stepN(1));
+          makeBtn(group, input, '+10', 'Increase %s by 10', stepN(10));
         } else {
           const stepD = (days) => function () {
             const cur = input.value ? parseISO(input.value) : null;
@@ -1545,14 +1651,18 @@ function wireDwell() {
             const next = cur ? addDays(cur, days) : new Date();
             input.value = ISO(next);
             fireEvents(input);
-            announceValue(input, name);
+            announceValue(input);
           };
-          makeBtn(group, '−1w', name + ' 1 week earlier', stepD(-7));
-          makeBtn(group, '−1d', name + ' 1 day earlier', stepD(-1));
-          makeBtn(group, '+1d', name + ' 1 day later', stepD(1));
-          makeBtn(group, '+1w', name + ' 1 week later', stepD(7));
+          makeBtn(group, input, '−1w', '%s 1 week earlier', stepD(-7));
+          makeBtn(group, input, '−1d', '%s 1 day earlier', stepD(-1));
+          makeBtn(group, input, '+1d', '%s 1 day later', stepD(1));
+          makeBtn(group, input, '+1w', '%s 1 week later', stepD(7));
         }
-        input.insertAdjacentElement('afterend', group);
+        /* Date inputs are wrapped in a flex row alongside their picker
+           button, so the stepper row goes after that wrapper rather
+           than inside it. */
+        const anchor = input.closest('.date-input-row') || input;
+        anchor.insertAdjacentElement('afterend', group);
       });
   };
   buildSteppers();
@@ -1665,6 +1775,9 @@ function wireEmployeeTypeToggle() {
     const pfcbBtn = document.getElementById('pfcbInfoBtn');
     if (pfcbBtn) pfcbBtn.setAttribute('aria-label',
       isPostdoc ? 'About PPFL eligibility' : 'About PFCB eligibility');
+    /* Field labels that differ by mode (PFCB/PPFL) feed the generated
+       date picker and stepper names, so re-label those too. */
+    refreshGeneratedLabels();
     if (announce) {
       liveSay(isPostdoc
         ? 'Postdoc selected: 7-day waiting period, short-term disability through The Standard, PPFL instead of PFCB, no Child Caring Leave.'
@@ -1820,6 +1933,9 @@ function wire() {
 
   wireCollapsibleSections();
   wireInfoButtons();
+  /* Before wireDwell: the stepper rows anchor to the date wrapper
+     this creates. */
+  wireDatePickerButtons();
   wireDwell();
   wireEmployeeTypeToggle();
   wireScheduleToggle();
