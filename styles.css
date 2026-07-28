@@ -327,6 +327,34 @@
     color: var(--paper);
     font-weight: 600;
   }
+  /* Stepper rows for date/number inputs — native pickers and spin
+     arrows are unreachable by synthetic events, so dwell mode adds its
+     own large-target step buttons under each field. Hidden entirely
+     (and out of the accessibility tree) unless dwell is on. */
+  .dwell-steppers { display: none; }
+  body.dwell-on .dwell-steppers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    margin-top: .35rem;
+  }
+  .dwell-stepper {
+    min-height: 40px;
+    min-width: 48px;
+    padding: .3rem .55rem;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: .85rem;
+    font-weight: 700;
+    background: var(--surface-1);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .dwell-stepper:hover {
+    background: var(--surface-2);
+    border-color: var(--ink-mute);
+  }
 
   /* smooth body-level theme transition (but only after initial paint) */
   body.theme-transitions,

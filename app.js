@@ -1305,6 +1305,33 @@ function wireDwell() {
     else el.focus();
   };
 
+  const armTarget = (target) => {
+    armedEl = target;
+    target.style.setProperty('--dwell-ms', (seconds * 1000) + 'ms');
+    /* Remove-reflow-add restarts the fill animation when re-arming the
+       same element (auto-repeat on stepper buttons). */
+    target.classList.remove('dwell-arming');
+    void target.offsetWidth;
+    target.classList.add('dwell-arming');
+    timer = setTimeout(fireDwell, seconds * 1000);
+  };
+
+  const fireDwell = () => {
+    timer = null;
+    const el = armedEl;
+    disarm();
+    if (el.classList.contains('dwell-stepper')) {
+      /* Stepper buttons auto-repeat: parking the pointer steps the value
+         once per dwell period instead of blocking until pointer-out, so
+         a date can be walked forward week by week hands-free. */
+      activate(el);
+      armTarget(el);
+    } else {
+      firedEl = el;
+      activate(el);
+    }
+  };
+
   const onPointerOver = (e) => {
     if (!enabled) return;
     const target = resolveTarget(e.target);
@@ -1312,16 +1339,7 @@ function wireDwell() {
     disarm();
     firedEl = null;
     if (!target) return;
-    armedEl = target;
-    target.style.setProperty('--dwell-ms', (seconds * 1000) + 'ms');
-    target.classList.add('dwell-arming');
-    timer = setTimeout(() => {
-      timer = null;
-      const el = armedEl;
-      disarm();
-      firedEl = el;
-      activate(el);
-    }, seconds * 1000);
+    armTarget(target);
   };
 
   const onPointerOut = (e) => {
@@ -1365,10 +1383,93 @@ function wireDwell() {
   document.addEventListener('pointerdown', onPointerDown, true);
   document.addEventListener('change', onChange, true);
 
+  /* Native date pickers and number spin arrows are browser-internal UI
+     that synthetic events cannot reach (and the picker popup could not
+     be dwelled anyway). While dwell is on, every date and number input
+     grows a row of stepper buttons instead: ±1 day / ±1 week for dates,
+     ±1 / ±10 for numbers. The buttons are ordinary dwell click targets
+     with auto-repeat (see fireDwell), also usable by mouse; they are
+     removed from the tab order because keyboard users already have
+     arrow-key stepping on the native inputs. */
+  const buildSteppers = () => {
+    const labelTextFor = (input) => {
+      let t = '';
+      if (input.id) {
+        const lab = document.querySelector('label[for="' + input.id + '"]');
+        if (lab) t = lab.textContent;
+      }
+      if (!t) {
+        const wrap = input.closest('label');
+        if (wrap) t = wrap.textContent;
+      }
+      return t.replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+    };
+    const announceValue = (input, name) => {
+      /* The dwell-time input announces through its own change handler. */
+      if (input === timeInput) return;
+      let v = input.value;
+      if (input.type === 'date' && v) {
+        const d = parseISO(v);
+        if (d) v = fmtShort(d);
+      }
+      liveSay(name + ' set to ' + (v === '' ? 'empty' : v) + '.');
+    };
+    const fireEvents = (input) => {
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const makeBtn = (group, text, ariaLabel, handler) => {
+      const b = createEl('button', 'dwell-stepper', text);
+      b.type = 'button';
+      b.tabIndex = -1;
+      b.setAttribute('aria-label', ariaLabel);
+      b.addEventListener('click', handler);
+      group.appendChild(b);
+    };
+    document.querySelectorAll('input[type="number"], input[type="date"]')
+      .forEach(input => {
+        const name = labelTextFor(input) || 'Value';
+        const group = createEl('div', 'dwell-steppers');
+        group.setAttribute('role', 'group');
+        group.setAttribute('aria-label', name + ' dwell steppers');
+        if (input.type === 'number') {
+          const stepN = (n) => function () {
+            /* stepUp/stepDown respect the input's min/max/step and
+               throw only on non-steppable inputs. */
+            try { if (n > 0) input.stepUp(n); else input.stepDown(-n); }
+            catch (e) {}
+            fireEvents(input);
+            announceValue(input, name);
+          };
+          makeBtn(group, '−10', 'Decrease ' + name + ' by 10', stepN(-10));
+          makeBtn(group, '−1', 'Decrease ' + name + ' by 1', stepN(-1));
+          makeBtn(group, '+1', 'Increase ' + name + ' by 1', stepN(1));
+          makeBtn(group, '+10', 'Increase ' + name + ' by 10', stepN(10));
+        } else {
+          const stepD = (days) => function () {
+            const cur = input.value ? parseISO(input.value) : null;
+            /* An empty date starts at today on the first step. */
+            const next = cur ? addDays(cur, days) : new Date();
+            input.value = ISO(next);
+            fireEvents(input);
+            announceValue(input, name);
+          };
+          makeBtn(group, '−1w', name + ' 1 week earlier', stepD(-7));
+          makeBtn(group, '−1d', name + ' 1 day earlier', stepD(-1));
+          makeBtn(group, '+1d', name + ' 1 day later', stepD(1));
+          makeBtn(group, '+1w', name + ' 1 week later', stepD(7));
+        }
+        input.insertAdjacentElement('afterend', group);
+      });
+  };
+  buildSteppers();
+
   const applyDwellUI = (announce) => {
     toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
     if (label) label.textContent = enabled ? 'Dwell: on' : 'Dwell: off';
     field.hidden = !enabled;
+    /* body.dwell-on gates the visibility of the stepper rows. */
+    document.body.classList.toggle('dwell-on', enabled);
     timeInput.value = String(seconds);
     /* On disable, clear ALL engine state. Note: when a dwell-fire lands
        on the Dwell toggle itself, the fire path sets firedEl just before
