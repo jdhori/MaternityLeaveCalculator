@@ -513,6 +513,31 @@
   @media (prefers-reduced-motion: reduce) {
     .fieldset-toggle::after { transition: none; }
   }
+  /* The section-header chevron owns this element's ::after, so the
+     generic dwell progress bar (also ::after) would merge with it and
+     render as a rotated, growing streak. Restore the chevron's
+     geometry while arming and draw the bar with ::before instead —
+     nothing else styles ::before on these buttons. */
+  .fieldset-toggle.dwell-arming::after {
+    position: static;
+    left: auto;
+    bottom: auto;
+    width: .5em;
+    height: .5em;
+    background: none;
+    animation: none;
+  }
+  .fieldset-toggle.dwell-arming::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 4px;
+    width: 0;
+    background: var(--focus);
+    pointer-events: none;
+    animation: dwell-fill var(--dwell-ms, 3000ms) linear forwards;
+  }
 
   .field {
     display: block;

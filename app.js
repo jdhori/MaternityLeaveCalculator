@@ -1235,6 +1235,12 @@ const DWELL_TIME_KEY = 'uc-leave-calc-dwell-time';
 const DWELL_DEFAULT_SECONDS = 3;
 const DWELL_MIN_SECONDS = 1;
 const DWELL_MAX_SECONDS = 60;
+/* Exit grace: leaving a control this briefly does NOT cancel or restart
+   its countdown. Without it, the pointer tremor typical of this
+   feature's users restarts the timer on every boundary wobble, making a
+   3-second dwell feel like 5+ seconds on small targets like the
+   steppers. Moving away and staying away still cancels (SC 2.5.2). */
+const DWELL_EXIT_GRACE_MS = 250;
 /* Elements activated with a synthetic click vs. focused. Radio and
    checkbox inputs are click targets (click() toggles them and fires
    change); text-entry inputs are focus targets. Selects get special
@@ -1283,6 +1289,11 @@ function wireDwell() {
   let timer = null;
   let firedEl = null;   /* element that just activated — blocked until pointerout */
   let openSelect = null; /* select currently expanded into an inline listbox */
+  let exitTimer = null;  /* pending exit-grace disarm (see DWELL_EXIT_GRACE_MS) */
+
+  const cancelExit = () => {
+    if (exitTimer) { clearTimeout(exitTimer); exitTimer = null; }
+  };
 
   const collapseSelect = (sel) => {
     if (!sel) return;
@@ -1397,7 +1408,13 @@ function wireDwell() {
   const onPointerOver = (e) => {
     if (!enabled) return;
     const target = resolveTarget(e.target);
-    if (target === armedEl || (target && target === firedEl)) return;
+    if (target === armedEl || (target && target === firedEl)) {
+      /* Back on the same control within the grace window: keep the
+         running countdown (or the re-fire block) untouched. */
+      cancelExit();
+      return;
+    }
+    cancelExit();
     disarm();
     firedEl = null;
     if (!target) return;
@@ -1407,13 +1424,24 @@ function wireDwell() {
   const onPointerOut = (e) => {
     if (!enabled) return;
     const related = e.relatedTarget;
-    if (armedEl && armedEl.contains(e.target) &&
-        (!related || !armedEl.contains(related))) {
-      disarm();
-    }
-    if (firedEl && firedEl.contains(e.target) &&
-        (!related || !firedEl.contains(related))) {
-      firedEl = null;
+    const leavingArmed = armedEl && armedEl.contains(e.target) &&
+        (!related || !armedEl.contains(related));
+    const leavingFired = firedEl && firedEl.contains(e.target) &&
+        (!related || !firedEl.contains(related));
+    if (leavingArmed || leavingFired) {
+      /* Don't cancel immediately — give the pointer a short grace
+         window to wobble back (see DWELL_EXIT_GRACE_MS). The staleness
+         checks matter: if the pointer reached another target first,
+         onPointerOver already re-armed and this callback must not
+         clobber the new state. */
+      const armedAtExit = leavingArmed ? armedEl : null;
+      const firedAtExit = leavingFired ? firedEl : null;
+      cancelExit();
+      exitTimer = setTimeout(() => {
+        exitTimer = null;
+        if (armedAtExit && armedEl === armedAtExit) disarm();
+        if (firedAtExit && firedEl === firedAtExit) firedEl = null;
+      }, DWELL_EXIT_GRACE_MS);
     }
     /* Leaving an expanded select entirely closes it without choosing. */
     if (openSelect && openSelect.contains(e.target) &&
@@ -1427,6 +1455,7 @@ function wireDwell() {
      an expanded select also closes it (a press inside lets the native
      listbox selection happen; the change listener below collapses). */
   const onPointerDown = (e) => {
+    cancelExit();
     disarm();
     firedEl = null;
     if (openSelect && e.target.nodeType === 1 && !openSelect.contains(e.target)) {
@@ -1540,7 +1569,7 @@ function wireDwell() {
        click() runs this handler — clearing it here is correct because the
        pointer handlers ignore events entirely while disabled, so the
        re-arm guard has no job left to do. */
-    if (!enabled) { disarm(); firedEl = null; collapseSelect(openSelect); }
+    if (!enabled) { cancelExit(); disarm(); firedEl = null; collapseSelect(openSelect); }
     if (announce) {
       liveSay(enabled
         ? 'Dwell clicking on. Rest the pointer on a control for '
