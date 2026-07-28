@@ -1175,12 +1175,17 @@ const DWELL_MIN_SECONDS = 1;
 const DWELL_MAX_SECONDS = 60;
 /* Elements activated with a synthetic click vs. focused. Radio and
    checkbox inputs are click targets (click() toggles them and fires
-   change); other inputs and selects are focus targets because a
-   synthetic click cannot open a native picker anyway. */
+   change); text-entry inputs are focus targets. Selects get special
+   handling: a synthetic click cannot open a native dropdown (browsers
+   require a real user gesture), so dwelling on a select expands it
+   into an inline listbox (via the size attribute) whose options are
+   themselves dwell targets — dwelling an option chooses it and
+   collapses the list. */
 const DWELL_CLICK_SELECTOR =
   'button, a[href], summary, label.radio, label.check, ' +
   'input[type="radio"], input[type="checkbox"]';
-const DWELL_FOCUS_SELECTOR = 'input, select, textarea';
+const DWELL_FOCUS_SELECTOR = 'input, textarea';
+const DWELL_SELECT_SELECTOR = 'select, option';
 
 const clampDwellSeconds = n =>
   Math.min(DWELL_MAX_SECONDS, Math.max(DWELL_MIN_SECONDS, Math.round(n)));
@@ -1215,6 +1220,45 @@ function wireDwell() {
   let armedEl = null;   /* element currently counting down */
   let timer = null;
   let firedEl = null;   /* element that just activated — blocked until pointerout */
+  let openSelect = null; /* select currently expanded into an inline listbox */
+
+  const collapseSelect = (sel) => {
+    if (!sel) return;
+    sel.classList.remove('dwell-open');
+    sel.removeAttribute('size');
+    if (openSelect === sel) openSelect = null;
+  };
+
+  const expandSelect = (sel) => {
+    if (openSelect && openSelect !== sel) collapseSelect(openSelect);
+    openSelect = sel;
+    /* size > 1 renders the select as an inline listbox, so its options
+       become visible, hoverable dwell targets. At least 2 rows (a
+       1-option select still needs listbox rendering), at most 8. */
+    sel.size = Math.min(Math.max(sel.options.length, 2), 8);
+    sel.classList.add('dwell-open');
+    sel.focus();
+    liveSay('List expanded. Rest the pointer on an option to choose it, or move away to close.');
+  };
+
+  const chooseOption = (opt) => {
+    const sel = opt.closest('select');
+    if (!sel) return;
+    const changed = sel.value !== opt.value;
+    sel.value = opt.value;
+    collapseSelect(sel);
+    /* The pointer is now parked on the collapsed select — block it from
+       re-arming (and re-expanding) until the pointer leaves. */
+    firedEl = sel;
+    if (changed) {
+      /* Fire a bubbling change so the app's normal listeners run —
+         including the select announcements, which tell the user what
+         was chosen. */
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      liveSay('Kept ' + (opt.text || opt.value) + '.');
+    }
+  };
 
   const disarm = () => {
     if (timer) { clearTimeout(timer); timer = null; }
@@ -1227,8 +1271,14 @@ function wireDwell() {
 
   const resolveTarget = (node) => {
     if (!node || node.nodeType !== 1) return null;
-    let el = node.closest(DWELL_CLICK_SELECTOR + ', ' + DWELL_FOCUS_SELECTOR);
+    let el = node.closest(DWELL_CLICK_SELECTOR + ', '
+      + DWELL_FOCUS_SELECTOR + ', ' + DWELL_SELECT_SELECTOR);
     if (!el) return null;
+    /* Inside an expanded select the options are the targets, not the
+       select itself — but only while that select is actually open. */
+    if (el.tagName === 'OPTION' && (!openSelect || !openSelect.contains(el))) {
+      el = el.closest('select') || el;
+    }
     /* Radio/checkbox inputs sit inside their styled label. Normalize to
        the wrapping label so the pointer drifting between the label's
        padding and the input's own box resolves to ONE logical target —
@@ -1249,7 +1299,9 @@ function wireDwell() {
   };
 
   const activate = (el) => {
-    if (el.matches(DWELL_CLICK_SELECTOR)) el.click();
+    if (el.tagName === 'SELECT') expandSelect(el);
+    else if (el.tagName === 'OPTION') chooseOption(el);
+    else if (el.matches(DWELL_CLICK_SELECTOR)) el.click();
     else el.focus();
   };
 
@@ -1283,15 +1335,35 @@ function wireDwell() {
         (!related || !firedEl.contains(related))) {
       firedEl = null;
     }
+    /* Leaving an expanded select entirely closes it without choosing. */
+    if (openSelect && openSelect.contains(e.target) &&
+        (!related || !openSelect.contains(related))) {
+      collapseSelect(openSelect);
+    }
   };
 
   /* A real pointer press means the user can click — cancel any pending
-     dwell so the intended press is the only activation. */
-  const onPointerDown = () => { disarm(); firedEl = null; };
+     dwell so the intended press is the only activation. A press outside
+     an expanded select also closes it (a press inside lets the native
+     listbox selection happen; the change listener below collapses). */
+  const onPointerDown = (e) => {
+    disarm();
+    firedEl = null;
+    if (openSelect && e.target.nodeType === 1 && !openSelect.contains(e.target)) {
+      collapseSelect(openSelect);
+    }
+  };
+
+  /* If the user natively picks an option while the listbox is expanded
+     (real click or keyboard), collapse it back to a dropdown. */
+  const onChange = (e) => {
+    if (openSelect && e.target === openSelect) collapseSelect(openSelect);
+  };
 
   document.addEventListener('pointerover', onPointerOver, true);
   document.addEventListener('pointerout', onPointerOut, true);
   document.addEventListener('pointerdown', onPointerDown, true);
+  document.addEventListener('change', onChange, true);
 
   const applyDwellUI = (announce) => {
     toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
@@ -1303,7 +1375,7 @@ function wireDwell() {
        click() runs this handler — clearing it here is correct because the
        pointer handlers ignore events entirely while disabled, so the
        re-arm guard has no job left to do. */
-    if (!enabled) { disarm(); firedEl = null; }
+    if (!enabled) { disarm(); firedEl = null; collapseSelect(openSelect); }
     if (announce) {
       liveSay(enabled
         ? 'Dwell clicking on. Rest the pointer on a control for '

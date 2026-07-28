@@ -316,6 +316,17 @@
     animation: dwell-fill var(--dwell-ms, 3000ms) linear forwards;
   }
   @keyframes dwell-fill { to { width: 100%; } }
+  /* A dwell-expanded select renders as an inline listbox (size > 1) so
+     its options become hoverable dwell targets. Options cannot draw the
+     ::after progress bar, so an arming option is marked with the focus
+     color as an inverted highlight instead. */
+  select.dwell-open { height: auto; }
+  select.dwell-open option { padding: .4rem .5rem; }
+  option.dwell-arming {
+    background: var(--focus);
+    color: var(--paper);
+    font-weight: 600;
+  }
 
   /* smooth body-level theme transition (but only after initial paint) */
   body.theme-transitions,
