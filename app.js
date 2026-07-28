@@ -986,10 +986,12 @@ function validate(input) {
 
 /* Render (or clear) the consolidated error summary at the top of the
    form. On show, the summary element gets programmatic focus so screen
-   readers read its content — a belt-and-braces backup to role="alert",
-   because focus-based announcement is the most reliable mechanism across
-   AT combinations. Also routes a count message through the polite
-   status channel for redundancy. */
+   readers read its content — the ONE announcement channel for
+   validation errors. Deliberately no role="alert" on the summary, no
+   alerts on the inline messages, and no extra live-region count: a
+   single failed submit produces a single announcement, and each
+   field's own message is read in context through aria-describedby
+   when the user reaches it. */
 function renderErrorSummary(errors) {
   const summary = document.getElementById('errorSummary');
   const list = document.getElementById('errorSummaryList');
@@ -1029,14 +1031,9 @@ function renderErrorSummary(errors) {
   });
 
   summary.hidden = false;
-  /* Defer focus to next tick so the element is fully rendered and the
-     role="alert" has had a chance to register as a live region. */
+  /* Defer focus to the next tick so the element is fully rendered
+     before the focus-driven announcement fires. */
   setTimeout(() => { summary.focus(); }, 0);
-
-  const countMsg = errors.length === 1
-    ? 'There is 1 problem with your information. Please review the error summary.'
-    : 'There are ' + errors.length + ' problems with your information. Please review the error summary.';
-  liveSay(countMsg);
 }
 
 const liveSay = msg => {
@@ -1049,10 +1046,9 @@ function run(e) {
     const input = collect();
     if (!validate(input)) {
       /* Validation failed. renderErrorSummary (called from validate)
-         already populated the summary, announced the count through the
-         polite live region, and moved focus to the summary itself so
-         the user's screen reader reads the heading and error list. No
-         further action needed here. */
+         already populated the summary and moved focus to it — the
+         single announcement of the heading and error list. No further
+         action needed here. */
       return false;
     }
     const r = calculate(input);

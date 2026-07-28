@@ -9,7 +9,7 @@
      CSP deliberately denies everything by default and only allows same-origin
      scripts, styles, images, and fonts. No inline scripts, no inline styles,
      no external resources, no network requests, no embedding via iframe. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-E1G41MpPfSyfxxwry7xtEjFzq2rmwTleWyifh77i3qQ='; style-src 'sha256-/cpHbKdSsarM3XW/FoBlo3rFCTRtvLdHhxS/TSKVrJE='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-ikPV4/N/rfDlu16fKYHb/t8RGkyu7B2PgnsSFTy19Js='; style-src 'sha256-/cpHbKdSsarM3XW/FoBlo3rFCTRtvLdHhxS/TSKVrJE='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
@@ -1275,11 +1275,14 @@
       <span class="sr-only">(required)</span> are required.
     </p>
 
-    <!-- Error summary: list of all validation problems, announced via
-         role="alert" (implicit aria-live="assertive") and focused on show
-         so screen readers reliably speak the full list. Each link jumps
-         to and focuses the corresponding field. -->
-    <div id="errorSummary" class="error-summary" role="alert"
+    <!-- Error summary: list of all validation problems. Announced ONCE,
+         by moving focus to the container on show (tabindex="-1") — the
+         single announcement channel. No role="alert" here and none on
+         the inline field messages, so screen readers are not hit with
+         the same errors three times; each inline message is instead
+         read in context via the field's aria-describedby. Each link
+         jumps to and focuses the corresponding field. -->
+    <div id="errorSummary" class="error-summary"
          aria-labelledby="errorSummaryHeading" tabindex="-1" hidden>
       <h3 id="errorSummaryHeading" class="error-summary-heading">
         <span class="error-summary-icon" aria-hidden="true">⚠</span>
@@ -1318,7 +1321,7 @@
           <input type="date" id="lastDay" name="lastDay" required
                  aria-required="true" aria-describedby="lastDay-hint lastDay-err">
           <span class="hint" id="lastDay-hint">The first day of your leave. Variable employees: pick the actual first day off, not necessarily the day after your last shift. <span class="postdoc-only">Postdocs typically begin leave 2 weeks before the estimated due date.</span></span>
-          <span class="err-msg" id="lastDay-err" role="alert" hidden></span>
+          <span class="err-msg" id="lastDay-err" hidden></span>
         </div>
 
         <div class="field">
@@ -1326,7 +1329,7 @@
           <input type="date" id="dueDate" name="dueDate" required
                  aria-required="true" aria-describedby="dueDate-hint dueDate-err">
           <span class="hint" id="dueDate-hint">From your physician. Used when actual birth date is unknown.</span>
-          <span class="err-msg" id="dueDate-err" role="alert" hidden></span>
+          <span class="err-msg" id="dueDate-err" hidden></span>
         </div>
 
         <div class="row">
@@ -1354,7 +1357,7 @@
             <option value="C-section">C-section (56-day PDL)</option>
           </select>
           <span class="hint" id="deliveryType-hint">Determines typical Pregnancy Disability Leave length.</span>
-          <span class="err-msg" id="deliveryType-err" role="alert" hidden></span>
+          <span class="err-msg" id="deliveryType-err" hidden></span>
         </div>
 
         <fieldset class="radio-group" aria-describedby="lincDisability-hint">
@@ -1395,14 +1398,14 @@
               <input type="number" id="hoursPerDay" name="hoursPerDay"
                      min="1" max="24" step="0.5" value="12"
                      aria-describedby="hoursPerDay-err">
-              <span class="err-msg" id="hoursPerDay-err" role="alert" hidden></span>
+              <span class="err-msg" id="hoursPerDay-err" hidden></span>
             </div>
             <div class="field">
               <label for="daysPerWeek">Days per week</label>
               <input type="number" id="daysPerWeek" name="daysPerWeek"
                      min="1" max="7" step="1" value="3"
                      aria-describedby="daysPerWeek-err">
-              <span class="err-msg" id="daysPerWeek-err" role="alert" hidden></span>
+              <span class="err-msg" id="daysPerWeek-err" hidden></span>
             </div>
           </div>
         </div>
@@ -1416,7 +1419,7 @@
           <input type="number" id="sickHours" name="sickHours" min="0" step="1" required
                  aria-required="true" aria-describedby="sickHours-hint sickHours-err">
           <span class="hint" id="sickHours-hint">Enter total accrued sick hours. The tool converts to working days based on your schedule. <span class="postdoc-only">Postdocs: sick leave can be used during disability leave only while you are not receiving disability (STD) benefits — the tool applies sick leave before STD income begins.</span></span>
-          <span class="err-msg" id="sickHours-err" role="alert" hidden></span>
+          <span class="err-msg" id="sickHours-err" hidden></span>
         </div>
 
         <div class="field">
@@ -1523,7 +1526,7 @@
             <input type="number" id="pfcbWeeks" name="pfcbWeeks" min="0" max="8" step="1"
                    aria-describedby="pfcbWeeks-hint pfcbWeeks-err">
             <span class="hint" id="pfcbWeeks-hint"><span class="staff-only">Pay for Family Care and Bonding. Enter weeks (UC standard is up to 8).</span><span class="postdoc-only">Postdoc Paid Family Leave. Enter weeks (up to 8 per birth).</span></span>
-            <span class="err-msg" id="pfcbWeeks-err" role="alert" hidden></span>
+            <span class="err-msg" id="pfcbWeeks-err" hidden></span>
           </div>
           <div class="field">
             <label for="pfcbStart"><span class="staff-only">PFCB begin date</span><span class="postdoc-only">PPFL begin date</span></label>
@@ -1564,7 +1567,7 @@
             <input type="number" id="cclWeeks" name="cclWeeks" min="0" max="26" step="1"
                    aria-describedby="cclWeeks-hint cclWeeks-err">
             <span class="hint" id="cclWeeks-hint">Leave blank or 0 to skip. See the info button above for the week limits.</span>
-            <span class="err-msg" id="cclWeeks-err" role="alert" hidden></span>
+            <span class="err-msg" id="cclWeeks-err" hidden></span>
           </div>
           <div class="field">
             <label for="cclAnchor">CCL starts after</label>
@@ -2651,10 +2654,12 @@ function validate(input) {
 
 /* Render (or clear) the consolidated error summary at the top of the
    form. On show, the summary element gets programmatic focus so screen
-   readers read its content — a belt-and-braces backup to role="alert",
-   because focus-based announcement is the most reliable mechanism across
-   AT combinations. Also routes a count message through the polite
-   status channel for redundancy. */
+   readers read its content — the ONE announcement channel for
+   validation errors. Deliberately no role="alert" on the summary, no
+   alerts on the inline messages, and no extra live-region count: a
+   single failed submit produces a single announcement, and each
+   field's own message is read in context through aria-describedby
+   when the user reaches it. */
 function renderErrorSummary(errors) {
   const summary = document.getElementById('errorSummary');
   const list = document.getElementById('errorSummaryList');
@@ -2694,14 +2699,9 @@ function renderErrorSummary(errors) {
   });
 
   summary.hidden = false;
-  /* Defer focus to next tick so the element is fully rendered and the
-     role="alert" has had a chance to register as a live region. */
+  /* Defer focus to the next tick so the element is fully rendered
+     before the focus-driven announcement fires. */
   setTimeout(() => { summary.focus(); }, 0);
-
-  const countMsg = errors.length === 1
-    ? 'There is 1 problem with your information. Please review the error summary.'
-    : 'There are ' + errors.length + ' problems with your information. Please review the error summary.';
-  liveSay(countMsg);
 }
 
 const liveSay = msg => {
@@ -2714,10 +2714,9 @@ function run(e) {
     const input = collect();
     if (!validate(input)) {
       /* Validation failed. renderErrorSummary (called from validate)
-         already populated the summary, announced the count through the
-         polite live region, and moved focus to the summary itself so
-         the user's screen reader reads the heading and error list. No
-         further action needed here. */
+         already populated the summary and moved focus to it — the
+         single announcement of the heading and error list. No further
+         action needed here. */
       return false;
     }
     const r = calculate(input);
