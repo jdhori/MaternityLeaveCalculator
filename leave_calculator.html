@@ -9,7 +9,7 @@
      CSP deliberately denies everything by default and only allows same-origin
      scripts, styles, images, and fonts. No inline scripts, no inline styles,
      no external resources, no network requests, no embedding via iframe. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-kDRGkRqpfwY/quE+dk/w6aVzY65Kk3tWdiY67wFDpKg='; style-src 'sha256-kl/x5uKhHl+CCJmC4mQhXuu9lmAGnXmmtwaoO5kib78='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-kDRGkRqpfwY/quE+dk/w6aVzY65Kk3tWdiY67wFDpKg='; style-src 'sha256-pbpUPnVv+IL1CG1IHVDXYsLBY4qxQM15lswOfPZbJiE='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
@@ -503,6 +503,12 @@
     border: 0;
     padding: 0;
     margin: 0 0 1rem;
+    /* Fieldsets default to min-inline-size: min-content, so one wide
+       child (a date field plus its picker button inside a two-column
+       row) inflates the whole fieldset past the side panel. Let it
+       shrink to its container like any other block. */
+    min-inline-size: 0;
+    min-width: 0;
   }
   legend {
     font-family: "Iowan Old Style", Georgia, serif;
@@ -736,7 +742,10 @@
   /* row: two side-by-side fields */
   .row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* minmax(0, 1fr) rather than 1fr: a plain 1fr track refuses to
+       shrink below its content's min-content width, which pushes date
+       fields out of the panel in the two-column rows. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: .7rem;
   }
 
@@ -1363,9 +1372,6 @@
           <line x1="12" y1="8" x2="12.01" y2="8"></line>
         </svg>
       </button>
-      <span id="dwellToggle-desc" class="sr-only">When on, resting the
-        pointer on a button, link, or form control for the dwell time
-        activates it without clicking.</span>
       <div class="dwell-time-field" id="dwellTimeField" hidden>
         <label for="dwellTime" class="dwell-time-label">Seconds</label>
         <button type="button" id="dwellTimeMinus" class="dwell-stepper dwell-time-btn"
@@ -1376,10 +1382,18 @@
         <button type="button" id="dwellTimePlus" class="dwell-stepper dwell-time-btn"
                 aria-label="Increase dwell time by 1 second">+</button>
       </div>
-      <span id="dwellTime-desc" class="sr-only">Dwell time in seconds
-        before a hovered control activates. 1 to 60. Default 3.</span>
     </div>
   </div>
+  <!-- Descriptions for the dwell controls above (linked by
+       aria-describedby, so DOM position is irrelevant). They live
+       outside the controls flex row because an absolutely positioned
+       .sr-only span takes its static position at the row's right edge,
+       which pushed 1px past the viewport on narrow screens. -->
+  <span id="dwellToggle-desc" class="sr-only">When on, resting the
+    pointer on a button, link, or form control for the dwell time
+    activates it without clicking.</span>
+  <span id="dwellTime-desc" class="sr-only">Dwell time in seconds
+    before a hovered control activates. 1 to 60. Default 3.</span>
   <div id="dwellInfoNote" class="info-note dwell-info-note" role="note"
        aria-live="polite" aria-atomic="true" hidden>
     <p><strong>Dwell clicking:</strong> hold the pointer still on a control

@@ -475,6 +475,12 @@
     border: 0;
     padding: 0;
     margin: 0 0 1rem;
+    /* Fieldsets default to min-inline-size: min-content, so one wide
+       child (a date field plus its picker button inside a two-column
+       row) inflates the whole fieldset past the side panel. Let it
+       shrink to its container like any other block. */
+    min-inline-size: 0;
+    min-width: 0;
   }
   legend {
     font-family: "Iowan Old Style", Georgia, serif;
@@ -708,7 +714,10 @@
   /* row: two side-by-side fields */
   .row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* minmax(0, 1fr) rather than 1fr: a plain 1fr track refuses to
+       shrink below its content's min-content width, which pushes date
+       fields out of the panel in the two-column rows. */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: .7rem;
   }
 
