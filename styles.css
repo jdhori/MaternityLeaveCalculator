@@ -413,6 +413,42 @@
     color: var(--ink);
   }
 
+  /* Collapsible section headers: the legend's text is moved into a
+     disclosure button at wire time. The button inherits the legend's
+     serif styling and adds a chevron that rotates between expanded
+     (down) and collapsed (right). */
+  .collapsible-legend { width: 100%; }
+  .fieldset-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    width: 100%;
+    padding: .15rem 0;
+    background: none;
+    border: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+  }
+  .fieldset-toggle:hover { color: var(--accent-dark); }
+  .fieldset-toggle::after {
+    content: "";
+    width: .5em;
+    height: .5em;
+    margin-right: .15em;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform .15s ease;
+    flex: 0 0 auto;
+  }
+  .fieldset-toggle[aria-expanded="false"]::after { transform: rotate(-45deg); }
+  @media (prefers-reduced-motion: reduce) {
+    .fieldset-toggle::after { transition: none; }
+  }
+
   .field {
     display: block;
     margin-bottom: .85rem;

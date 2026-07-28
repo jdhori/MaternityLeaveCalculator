@@ -917,6 +917,8 @@ function validate(input) {
   const addError = (fieldId, message) => {
     errors.push({ fieldId, message });
     showErr(fieldId, message);
+    /* A collapsed section must not hide an error from the user. */
+    revealSectionFor(document.getElementById(fieldId));
   };
 
   if (!input.lastDay) {
@@ -1015,6 +1017,7 @@ function renderErrorSummary(errors) {
       const target = document.getElementById(fieldId);
       if (target) {
         e.preventDefault();
+        revealSectionFor(target);
         target.focus();
         if (typeof target.scrollIntoView === 'function') {
           target.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -1087,6 +1090,11 @@ function resetAll() {
   /* Employee type resets to Staff — re-sync the mode class, swapped
      labels, and waiting-period options. */
   if (refreshEmployeeTypeUI) refreshEmployeeTypeUI();
+  /* Re-expand all form sections for a fresh start. */
+  document.querySelectorAll('.fieldset-body').forEach(b => { b.hidden = false; });
+  document.querySelectorAll('.fieldset-toggle').forEach(b => {
+    b.setAttribute('aria-expanded', 'true');
+  });
   document.querySelectorAll('[aria-invalid="true"]').forEach(el => el.removeAttribute('aria-invalid'));
   document.querySelectorAll('.err-msg').forEach(el => { el.textContent=''; el.hidden = true; });
   /* Also clear the consolidated error summary. */
@@ -1147,6 +1155,64 @@ function toggleTheme() {
   writeStoredTheme(next);
   applyTheme(next);
   liveSay(next === 'dark' ? 'Switched to dark mode.' : 'Switched to light mode.');
+}
+
+/* ============================================================
+   Collapsible form sections
+   -----------------------------------------------------------
+   Each top-level fieldset in the form panel becomes a disclosure:
+   the legend's text moves into a button (aria-expanded /
+   aria-controls) and everything after the legend is wrapped in a
+   .fieldset-body that toggles hidden. Built at wire time from the
+   existing markup, so both distributions stay in parity without
+   duplicating HTML. Sections start expanded; collapsing is a
+   convenience for shortening the panel. Validation auto-expands
+   any collapsed section that contains an errored field, so error
+   summary links always land on a visible control.
+   ============================================================ */
+function revealSectionFor(el) {
+  if (!el || !el.closest) return;
+  const body = el.closest('.fieldset-body');
+  if (!body || !body.hidden) return;
+  body.hidden = false;
+  const btn = document.querySelector(
+    '.fieldset-toggle[aria-controls="' + body.id + '"]');
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+}
+
+function wireCollapsibleSections() {
+  const form = document.getElementById('calcForm');
+  if (!form) return;
+  const fieldsets = form.querySelectorAll(':scope > fieldset');
+  fieldsets.forEach((fs, i) => {
+    const legend = fs.querySelector(':scope > legend');
+    if (!legend) return;
+    const title = legend.textContent.trim();
+
+    const body = document.createElement('div');
+    body.className = 'fieldset-body';
+    body.id = 'fieldsetBody-' + i;
+    const rest = Array.prototype.filter.call(fs.children, c => c !== legend);
+    rest.forEach(node => body.appendChild(node));
+    fs.appendChild(body);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'fieldset-toggle';
+    btn.setAttribute('aria-expanded', 'true');
+    btn.setAttribute('aria-controls', body.id);
+    btn.appendChild(createEl('span', 'fieldset-toggle-text', title));
+    btn.addEventListener('click', function () {
+      const wasOpen = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!wasOpen));
+      body.hidden = wasOpen;
+      liveSay(title + (wasOpen ? ' section collapsed.' : ' section expanded.'));
+    });
+
+    legend.classList.add('collapsible-legend');
+    clearChildren(legend);
+    legend.appendChild(btn);
+  });
 }
 
 /* ============================================================
@@ -1727,6 +1793,7 @@ function wire() {
   if (pdfBtn) pdfBtn.addEventListener('click', saveAsPDF);
   if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 
+  wireCollapsibleSections();
   wireInfoButtons();
   wireDwell();
   wireEmployeeTypeToggle();
