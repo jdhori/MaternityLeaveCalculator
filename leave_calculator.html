@@ -9,7 +9,7 @@
      CSP deliberately denies everything by default and only allows same-origin
      scripts, styles, images, and fonts. No inline scripts, no inline styles,
      no external resources, no network requests, no embedding via iframe. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-ikPV4/N/rfDlu16fKYHb/t8RGkyu7B2PgnsSFTy19Js='; style-src 'sha256-/cpHbKdSsarM3XW/FoBlo3rFCTRtvLdHhxS/TSKVrJE='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-ikPV4/N/rfDlu16fKYHb/t8RGkyu7B2PgnsSFTy19Js='; style-src 'sha256-j/1v5sTy0qyAc+qtKWjVPM3OzVhyfQZKP8W/K1U0RwY='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
@@ -305,7 +305,7 @@
   }
   #dwellToggle[aria-pressed="true"] {
     border-color: var(--focus);
-    color: var(--ink);
+    color: var(--btn-orange-text, var(--ink));
     box-shadow: inset 0 0 0 1px var(--focus);
   }
   .dwell-time-field {
@@ -393,6 +393,71 @@
     margin: .5rem auto .25rem;
   }
   .masthead .dwell-info-note p + p { margin-top: .5rem; }
+
+  /* ------------------------------------------------------------
+     Button color accents
+     Reset is red; Print, Save as PDF, the Dwell toggle, and every
+     dwell stepper (field steppers and the seconds − / + pair) are
+     orange; the theme toggle is black with white text/icons in the
+     day theme and orange in the night theme. All text/background
+     pairs measure ≥ 6:1 (white on #b00020 = 7.3, #1c1207 on
+     #f09000 = 7.6, white on #16181d = 17.8; hovers ≥ 6:1). Icons
+     use stroke: currentColor, so they follow the text color. */
+  :root {
+    --btn-red: #b00020;
+    --btn-red-hover: #8f0019;
+    --btn-red-text: #ffffff;
+    --btn-orange: #f09000;
+    --btn-orange-hover: #d67f00;
+    --btn-orange-border: #b56b00;
+    --btn-orange-text: #1c1207;
+  }
+  #resetBtn {
+    background: var(--btn-red);
+    border-color: var(--btn-red-hover);
+    color: var(--btn-red-text);
+  }
+  #resetBtn:hover {
+    background: var(--btn-red-hover);
+    border-color: var(--btn-red-hover);
+    color: var(--btn-red-text);
+  }
+  #printBtn, #pdfBtn, #dwellToggle, .dwell-stepper {
+    background: var(--btn-orange);
+    border-color: var(--btn-orange-border);
+    color: var(--btn-orange-text);
+  }
+  #printBtn:hover, #pdfBtn:hover, #dwellToggle:hover, .dwell-stepper:hover {
+    background: var(--btn-orange-hover);
+    border-color: var(--btn-orange-border);
+    color: var(--btn-orange-text);
+  }
+  /* The theme toggle's colors ride on custom properties (overridden
+     by the dark-theme token block) rather than a [data-theme]
+     descendant selector, matching how every other color in the app
+     updates the moment the theme flips. */
+  :root {
+    --theme-btn-bg: #16181d;
+    --theme-btn-bg-hover: #2f333b;
+    --theme-btn-border: #16181d;
+    --theme-btn-text: #ffffff;
+  }
+  :root[data-theme="dark"] {
+    --theme-btn-bg: var(--btn-orange);
+    --theme-btn-bg-hover: var(--btn-orange-hover);
+    --theme-btn-border: var(--btn-orange-border);
+    --theme-btn-text: var(--btn-orange-text);
+  }
+  #themeToggle {
+    background: var(--theme-btn-bg);
+    border-color: var(--theme-btn-border);
+    color: var(--theme-btn-text);
+  }
+  #themeToggle:hover {
+    background: var(--theme-btn-bg-hover);
+    border-color: var(--theme-btn-border);
+    color: var(--theme-btn-text);
+  }
 
   /* smooth body-level theme transition (but only after initial paint) */
   body.theme-transitions,
