@@ -245,9 +245,15 @@ function calculate(input) {
       : addWorkdays(sickEnd, 1);
     vacEnd = addWorkdays(vacBegin, vacDays - 1);
   } else if (vacDays >= 1 && sickCoversWaiting) {
-    vacNote = 'Using vacation is not necessary — sick leave covers the waiting period';
+    /* Postdocs hold both vacation and PTO, so their balance is labelled
+       VAC/PTO throughout. */
+    vacNote = isPostdoc
+      ? 'Using vacation/PTO is not necessary — sick leave covers the waiting period'
+      : 'Using vacation is not necessary — sick leave covers the waiting period';
   } else if (vacDays >= 1 && fallbackStrategy === 'lns') {
-    vacNote = 'Vacation available but not used (elected to go without pay)';
+    vacNote = isPostdoc
+      ? 'VAC/PTO available but not used (elected to go without pay)'
+      : 'Vacation available but not used (elected to go without pay)';
   }
 
   /* --- WAITING PERIOD ---
@@ -272,7 +278,7 @@ function calculate(input) {
   }
 
   /* --- Lincoln Financial CLAIM FILE date: 28 days before leave start.
-         Health LOA recommends 1–2 weeks before; plan ceiling is 30 days.
+         UCD recommends 1–2 weeks before; plan ceiling is 30 days.
          Only relevant when applying for Lincoln disability. --- */
   const fileClaim = appliesLincoln ? addDays(leaveStart, -28) : null;
 
@@ -507,9 +513,9 @@ function renderTimeline(r) {
     let pfcbMeta = r.pfcbWeeks + ' week' + (r.pfcbWeeks === 1 ? '' : 's')
       + (r.pfcbStartInferred ? ' · starts day after PDL ends (default)' : '');
     if (r.isPostdoc) {
-      pfcbMeta += ' · per birth — cannot be used again in the new year';
+      pfcbMeta += ' · per birth — may be taken up until the child\'s first birthday';
       pfcbMeta += r.fmlEligible
-        ? ' · sick leave may not be used for pay during family leave (PPFL or vacation only)'
+        ? ' · sick leave may not be used for pay during family leave (PPFL or VAC/PTO only)'
         : ' · personal leave paid via PPFL — no departmental approval needed';
     }
     push('pfcb', bondingLabel, pfcbMeta, r.pfcbStart, r.pfcbEnd);
@@ -517,7 +523,7 @@ function renderTimeline(r) {
 
   if (r.fileClaim) push('linc',
     r.isPostdoc ? 'File STD claim with The Standard' : 'File Lincoln Financial claim',
-    'May file up to 30 days before leave begins. Health LOA recommends 1–2 weeks before. Requires medical certification; the LOA team processes the leave.',
+    'May file up to 30 days before leave begins. UCD recommends 1–2 weeks before. Requires medical certification; the LOA team processes the leave.',
     r.fileClaim, null);
 
   if (r.sickBegin) {
@@ -527,8 +533,9 @@ function renderTimeline(r) {
     }
     push('sick', 'Sick leave', sickMeta, r.sickBegin, r.sickEnd);
   }
-  if (r.vacBegin) push('vac', 'Vacation leave', r.vacDays + ' day' + (r.vacDays===1?'':'s') + ' used', r.vacBegin, r.vacEnd);
-  else if (r.vacNote) pushNote('vac', 'Vacation leave', r.vacNote);
+  const vacLabel = r.isPostdoc ? 'VAC/PTO' : 'Vacation leave';
+  if (r.vacBegin) push('vac', vacLabel, r.vacDays + ' day' + (r.vacDays===1?'':'s') + ' used', r.vacBegin, r.vacEnd);
+  else if (r.vacNote) pushNote('vac', vacLabel, r.vacNote);
 
   if (r.waitBegin && r.sickDays < r.waitingWorkdays && r.fallbackStrategy === 'lns') {
     const gapDays = r.waitingWorkdays - r.sickDays;

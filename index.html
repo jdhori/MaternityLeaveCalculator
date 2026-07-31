@@ -136,7 +136,7 @@
 
       <fieldset>
         <legend>Employee type</legend>
-        <fieldset class="radio-group" aria-describedby="employeeType-hint">
+        <fieldset class="radio-group">
           <legend>Which best describes your appointment?</legend>
           <label class="radio">
             <input type="radio" name="employeeType" value="staff" checked>
@@ -146,7 +146,6 @@
             <input type="radio" name="employeeType" value="postdoc">
             <span>Postdoc</span>
           </label>
-          <span class="hint" id="employeeType-hint">Postdocs follow different rules: a 7-day disability waiting period, short-term disability (STD) through The Standard, and 8 weeks of Postdoc Paid Family Leave (PPFL) instead of PFCB. Child Caring Leave does not apply.</span>
         </fieldset>
       </fieldset>
 
@@ -260,21 +259,21 @@
         </div>
 
         <div class="field">
-          <label for="vacHours">Total vacation hours</label>
+          <label for="vacHours"><span class="staff-only">Total vacation hours</span><span class="postdoc-only">Total VAC/PTO hours</span></label>
           <input type="number" id="vacHours" name="vacHours" min="0" step="1"
                  aria-describedby="vacHours-hint">
-          <span class="hint" id="vacHours-hint">Optional. Used only if sick hours don't cover the waiting period <em>and</em> you elect "Use vacation" below.</span>
+          <span class="hint" id="vacHours-hint">Optional. Used only if sick hours don't cover the waiting period <em>and</em> you elect to use the balance below.</span>
         </div>
 
         <fieldset class="radio-group">
           <legend>If sick leave doesn't cover the waiting period</legend>
           <label class="radio">
             <input type="radio" name="fallbackStrategy" value="vacation" checked>
-            <span>Use vacation balance, then go without pay</span>
+            <span><span class="staff-only">Use vacation balance, then go without pay</span><span class="postdoc-only">Use VAC/PTO balance, then go without pay</span></span>
           </label>
           <label class="radio">
             <input type="radio" name="fallbackStrategy" value="lns">
-            <span>Go without pay (don't use vacation)</span>
+            <span><span class="staff-only">Go without pay (don't use vacation)</span><span class="postdoc-only">Go without pay (don't use VAC/PTO)</span></span>
           </label>
         </fieldset>
 
@@ -318,7 +317,7 @@
           FMLA/CFRA eligible, the leave is a personal leave paid through PPFL —
           no departmental approval is needed. If you are FMLA/CFRA eligible,
           sick leave may not be used for pay during family leave — only PPFL or
-          vacation.</p>
+          VAC/PTO.</p>
         </div>
         <div class="field">
           <span class="hint" id="elig-hint">See the info button above for eligibility details.</span>
@@ -353,9 +352,9 @@
           PPFL</strong> and do <strong>not</strong> need to be FMLA/CFRA
           eligible. If you are not FMLA/CFRA eligible, the leave is a personal
           leave paid through PPFL — no departmental approval is needed. PPFL is
-          <strong>per birth</strong> and cannot be used again in the new year.
-          If you are FMLA/CFRA eligible, sick leave may not be used for pay
-          during family leave — only PPFL or vacation.</p>
+          <strong>per birth</strong> and may be taken any time up until the
+          child's first birthday. If you are FMLA/CFRA eligible, sick leave may
+          not be used for pay during family leave — only PPFL or VAC/PTO.</p>
         </div>
         <div class="row">
           <div class="field">
@@ -468,7 +467,7 @@
             <span><span class="sw sw-pfcb"></span><span class="staff-only">PFCB</span><span class="postdoc-only">PPFL</span></span>
             <span class="staff-only"><span class="sw sw-ccl"></span>CCL</span>
             <span><span class="sw sw-sick sw-bordered"></span>Sick day</span>
-            <span><span class="sw sw-vac sw-bordered"></span>Vacation day</span>
+            <span><span class="sw sw-vac sw-bordered"></span><span class="staff-only">Vacation day</span><span class="postdoc-only">VAC/PTO day</span></span>
             <span><span class="sw sw-lns sw-bordered"></span>Leave, no salary</span>
             <span><span class="sw sw-holiday sw-bordered"></span>★ Holiday</span>
           </div>

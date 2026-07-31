@@ -9,7 +9,7 @@
      CSP deliberately denies everything by default and only allows same-origin
      scripts, styles, images, and fonts. No inline scripts, no inline styles,
      no external resources, no network requests, no embedding via iframe. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-vYF2M2yplg8kMFSeLNSdavUTzNMuDG0SSjRZsBgr+tM='; style-src 'sha256-pbpUPnVv+IL1CG1IHVDXYsLBY4qxQM15lswOfPZbJiE='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dBiDhFvSZLfX8gm+h9zObjOb1H3OoktCsG7iXXxxjX4=' 'sha256-zREGo+7Nv+ZNRVdwCzUvuR1MwkV7gx4na8mYoYU1mII='; style-src 'sha256-pbpUPnVv+IL1CG1IHVDXYsLBY4qxQM15lswOfPZbJiE='; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
@@ -1452,7 +1452,7 @@
 
       <fieldset>
         <legend>Employee type</legend>
-        <fieldset class="radio-group" aria-describedby="employeeType-hint">
+        <fieldset class="radio-group">
           <legend>Which best describes your appointment?</legend>
           <label class="radio">
             <input type="radio" name="employeeType" value="staff" checked>
@@ -1462,7 +1462,6 @@
             <input type="radio" name="employeeType" value="postdoc">
             <span>Postdoc</span>
           </label>
-          <span class="hint" id="employeeType-hint">Postdocs follow different rules: a 7-day disability waiting period, short-term disability (STD) through The Standard, and 8 weeks of Postdoc Paid Family Leave (PPFL) instead of PFCB. Child Caring Leave does not apply.</span>
         </fieldset>
       </fieldset>
 
@@ -1576,21 +1575,21 @@
         </div>
 
         <div class="field">
-          <label for="vacHours">Total vacation hours</label>
+          <label for="vacHours"><span class="staff-only">Total vacation hours</span><span class="postdoc-only">Total VAC/PTO hours</span></label>
           <input type="number" id="vacHours" name="vacHours" min="0" step="1"
                  aria-describedby="vacHours-hint">
-          <span class="hint" id="vacHours-hint">Optional. Used only if sick hours don't cover the waiting period <em>and</em> you elect "Use vacation" below.</span>
+          <span class="hint" id="vacHours-hint">Optional. Used only if sick hours don't cover the waiting period <em>and</em> you elect to use the balance below.</span>
         </div>
 
         <fieldset class="radio-group">
           <legend>If sick leave doesn't cover the waiting period</legend>
           <label class="radio">
             <input type="radio" name="fallbackStrategy" value="vacation" checked>
-            <span>Use vacation balance, then go without pay</span>
+            <span><span class="staff-only">Use vacation balance, then go without pay</span><span class="postdoc-only">Use VAC/PTO balance, then go without pay</span></span>
           </label>
           <label class="radio">
             <input type="radio" name="fallbackStrategy" value="lns">
-            <span>Go without pay (don't use vacation)</span>
+            <span><span class="staff-only">Go without pay (don't use vacation)</span><span class="postdoc-only">Go without pay (don't use VAC/PTO)</span></span>
           </label>
         </fieldset>
 
@@ -1634,7 +1633,7 @@
           FMLA/CFRA eligible, the leave is a personal leave paid through PPFL —
           no departmental approval is needed. If you are FMLA/CFRA eligible,
           sick leave may not be used for pay during family leave — only PPFL or
-          vacation.</p>
+          VAC/PTO.</p>
         </div>
         <div class="field">
           <span class="hint" id="elig-hint">See the info button above for eligibility details.</span>
@@ -1669,9 +1668,9 @@
           PPFL</strong> and do <strong>not</strong> need to be FMLA/CFRA
           eligible. If you are not FMLA/CFRA eligible, the leave is a personal
           leave paid through PPFL — no departmental approval is needed. PPFL is
-          <strong>per birth</strong> and cannot be used again in the new year.
-          If you are FMLA/CFRA eligible, sick leave may not be used for pay
-          during family leave — only PPFL or vacation.</p>
+          <strong>per birth</strong> and may be taken any time up until the
+          child's first birthday. If you are FMLA/CFRA eligible, sick leave may
+          not be used for pay during family leave — only PPFL or VAC/PTO.</p>
         </div>
         <div class="row">
           <div class="field">
@@ -1784,7 +1783,7 @@
             <span><span class="sw sw-pfcb"></span><span class="staff-only">PFCB</span><span class="postdoc-only">PPFL</span></span>
             <span class="staff-only"><span class="sw sw-ccl"></span>CCL</span>
             <span><span class="sw sw-sick sw-bordered"></span>Sick day</span>
-            <span><span class="sw sw-vac sw-bordered"></span>Vacation day</span>
+            <span><span class="sw sw-vac sw-bordered"></span><span class="staff-only">Vacation day</span><span class="postdoc-only">VAC/PTO day</span></span>
             <span><span class="sw sw-lns sw-bordered"></span>Leave, no salary</span>
             <span><span class="sw sw-holiday sw-bordered"></span>★ Holiday</span>
           </div>
@@ -2066,9 +2065,15 @@ function calculate(input) {
       : addWorkdays(sickEnd, 1);
     vacEnd = addWorkdays(vacBegin, vacDays - 1);
   } else if (vacDays >= 1 && sickCoversWaiting) {
-    vacNote = 'Using vacation is not necessary — sick leave covers the waiting period';
+    /* Postdocs hold both vacation and PTO, so their balance is labelled
+       VAC/PTO throughout. */
+    vacNote = isPostdoc
+      ? 'Using vacation/PTO is not necessary — sick leave covers the waiting period'
+      : 'Using vacation is not necessary — sick leave covers the waiting period';
   } else if (vacDays >= 1 && fallbackStrategy === 'lns') {
-    vacNote = 'Vacation available but not used (elected to go without pay)';
+    vacNote = isPostdoc
+      ? 'VAC/PTO available but not used (elected to go without pay)'
+      : 'Vacation available but not used (elected to go without pay)';
   }
 
   /* --- WAITING PERIOD ---
@@ -2093,7 +2098,7 @@ function calculate(input) {
   }
 
   /* --- Lincoln Financial CLAIM FILE date: 28 days before leave start.
-         Health LOA recommends 1–2 weeks before; plan ceiling is 30 days.
+         UCD recommends 1–2 weeks before; plan ceiling is 30 days.
          Only relevant when applying for Lincoln disability. --- */
   const fileClaim = appliesLincoln ? addDays(leaveStart, -28) : null;
 
@@ -2328,9 +2333,9 @@ function renderTimeline(r) {
     let pfcbMeta = r.pfcbWeeks + ' week' + (r.pfcbWeeks === 1 ? '' : 's')
       + (r.pfcbStartInferred ? ' · starts day after PDL ends (default)' : '');
     if (r.isPostdoc) {
-      pfcbMeta += ' · per birth — cannot be used again in the new year';
+      pfcbMeta += ' · per birth — may be taken up until the child\'s first birthday';
       pfcbMeta += r.fmlEligible
-        ? ' · sick leave may not be used for pay during family leave (PPFL or vacation only)'
+        ? ' · sick leave may not be used for pay during family leave (PPFL or VAC/PTO only)'
         : ' · personal leave paid via PPFL — no departmental approval needed';
     }
     push('pfcb', bondingLabel, pfcbMeta, r.pfcbStart, r.pfcbEnd);
@@ -2338,7 +2343,7 @@ function renderTimeline(r) {
 
   if (r.fileClaim) push('linc',
     r.isPostdoc ? 'File STD claim with The Standard' : 'File Lincoln Financial claim',
-    'May file up to 30 days before leave begins. Health LOA recommends 1–2 weeks before. Requires medical certification; the LOA team processes the leave.',
+    'May file up to 30 days before leave begins. UCD recommends 1–2 weeks before. Requires medical certification; the LOA team processes the leave.',
     r.fileClaim, null);
 
   if (r.sickBegin) {
@@ -2348,8 +2353,9 @@ function renderTimeline(r) {
     }
     push('sick', 'Sick leave', sickMeta, r.sickBegin, r.sickEnd);
   }
-  if (r.vacBegin) push('vac', 'Vacation leave', r.vacDays + ' day' + (r.vacDays===1?'':'s') + ' used', r.vacBegin, r.vacEnd);
-  else if (r.vacNote) pushNote('vac', 'Vacation leave', r.vacNote);
+  const vacLabel = r.isPostdoc ? 'VAC/PTO' : 'Vacation leave';
+  if (r.vacBegin) push('vac', vacLabel, r.vacDays + ' day' + (r.vacDays===1?'':'s') + ' used', r.vacBegin, r.vacEnd);
+  else if (r.vacNote) pushNote('vac', vacLabel, r.vacNote);
 
   if (r.waitBegin && r.sickDays < r.waitingWorkdays && r.fallbackStrategy === 'lns') {
     const gapDays = r.waitingWorkdays - r.sickDays;
